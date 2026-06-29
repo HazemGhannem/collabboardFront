@@ -14,21 +14,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import Column from './Column';
 import Card from './Card';
-
-interface CardData {
-  id: string;
-  title: string;
-  category: string;
-  color: { bgColor: String; textColor: string };
-  user: string;
-  blur?: boolean;
-}
-
-interface ColumnData {
-  id: string;
-  title: string;
-  cards: CardData[];
-}
+import { CardProps, ColumnData } from '@/utils/ComponentsProps';
 
 const INITIAL_COLUMNS: ColumnData[] = [
   {
@@ -42,6 +28,7 @@ const INITIAL_COLUMNS: ColumnData[] = [
         color: {
           textColor: 'text-orange-500',
           bgColor: 'bg-orange-500',
+          borderColor: 'border-l-orange-500',
         },
         user: 'AG',
       },
@@ -58,6 +45,7 @@ const INITIAL_COLUMNS: ColumnData[] = [
         color: {
           textColor: 'text-blue-500',
           bgColor: 'bg-blue-500',
+          borderColor: 'border-l-blue-500',
         },
         user: 'AG',
       },
@@ -74,6 +62,7 @@ const INITIAL_COLUMNS: ColumnData[] = [
         color: {
           textColor: 'text-green-500',
           bgColor: 'bg-green-500',
+          borderColor: 'border-l-green-500',
         },
         user: 'AG',
       },
@@ -88,7 +77,7 @@ function findColumnOfCard(columns: ColumnData[], cardId: string) {
 
 export default function Board() {
   const [columns, setColumns] = useState<ColumnData[]>(INITIAL_COLUMNS);
-  const [activeCard, setActiveCard] = useState<CardData | null>(null);
+  const [activeCard, setActiveCard] = useState<CardProps | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

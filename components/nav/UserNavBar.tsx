@@ -44,7 +44,7 @@ export default function UserNavBar({
   href = '/',
 }: NavbarProps) {
   return (
-    <nav className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
+    <nav className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#e6f4f5] bg-zinc-800 p-4 shadow-sm">
       <a href={href} className="flex min-w-0 items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-zinc-800">
           <Kanban size={20} />
