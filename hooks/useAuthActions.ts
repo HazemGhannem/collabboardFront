@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import type { LoginData, SignupData } from '@/types/type';
+import { api } from '@/utils/api';
 
 export function useAuthActions() {
   const router = useRouter();
@@ -12,24 +13,14 @@ export function useAuthActions() {
   const signup = async (data: SignupData) => {
     setLoading(true);
     setError(null);
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/signup`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        },
-      );
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? 'Something went wrong.');
-        return;
-      }
-      save(json.user, json.token);
+      const { data: response } = await api.post('/auth/signup', data);
+
+      save(response.user, response.token);
       router.push('/');
-    } catch {
-      setError('Something went wrong. Try again.');
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }
@@ -38,24 +29,14 @@ export function useAuthActions() {
   const login = async (data: LoginData) => {
     setLoading(true);
     setError(null);
+
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/login`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        },
-      );
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error ?? 'Invalid email or password.');
-        return;
-      }
-      save(json.user, json.token);
+      const { data: response } = await api.post('/auth/login', data);
+
+      save(response.user, response.token);
       router.push('/');
-    } catch {
-      setError('Something went wrong. Try again.');
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
