@@ -1,8 +1,9 @@
 'use client';
 import { Kanban, Settings } from 'lucide-react';
 import Button from '../ui/Button';
-import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useAuthActions } from '@/hooks/useAuthActions';
+import { useAppSelector } from '@/store/hooks';
 
 interface NavbarProps {
   title?: string;
@@ -46,7 +47,10 @@ export default function NavBar({
   status = 'Public',
   href = '/',
 }: NavbarProps) {
-  const { user, token, logout } = useAuth();
+  const { logout } = useAuthActions();
+    const { user } = useAppSelector((s) => s.auth);
+  
+
   const router = useRouter();
   const handleNavigation = () => {
     router.push('/login');

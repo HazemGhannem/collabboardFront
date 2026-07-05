@@ -1,10 +1,10 @@
 'use client';
-import BorderList from '@/components/boarder/BoarderList';
+import Landing from '@/components/landing/Landing';
 
 export default function Home() {
   return (
     <div className="min-h-screen w-full flex justify-center items-center">
-      <BorderList />
+      <Landing />
     </div>
   );
 }

@@ -8,9 +8,8 @@ import Input from '../ui/Input';
 import { Plus } from 'lucide-react';
 import { ColumnProps } from '@/utils/ComponentsProps';
 
-const Column = ({ id, title, cards }: ColumnProps) => {
+const Column = ({ id, name, cards }: ColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id });
-  console.log(id);
   return (
     <div
       className={`rounded-xl p-4 transition-colors ${
@@ -18,7 +17,7 @@ const Column = ({ id, title, cards }: ColumnProps) => {
       }`}
     >
       <div className="flex justify-between mb-4">
-        <h2 className="font-semibold text-white">{title}</h2>
+        <h2 className="font-semibold text-white">{name}</h2>
         <span className="flex items-center border h-[18px] w-[22px] rounded-full justify-center bg-[#a1a1aa] font-semibold text-[13px] text-[#232326]">
           {cards.length}
         </span>
@@ -31,9 +30,15 @@ const Column = ({ id, title, cards }: ColumnProps) => {
       >
         <div ref={setNodeRef} className="flex flex-col gap-3 min-h-[40px]">
           {cards.map((card) => (
-            <Card key={card.id} {...card} blur={title === 'Done'} coumId={id} />
+            <Card
+              key={card.id}
+              {...card}
+              blur={name === 'Done'}
+              columName={name}
+              columId={id}
+            />
           ))}
-          <Input placeholder={title} Icon={Plus} iconSize={24} />
+          <Input placeholder={name} Icon={Plus} iconSize={24} />
         </div>
       </SortableContext>
     </div>

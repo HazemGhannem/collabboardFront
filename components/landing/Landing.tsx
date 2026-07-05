@@ -1,26 +1,19 @@
-'use client';
-
 import { useCollabBoardForm } from '@/hooks/useCollabboarform';
 import { Kanban } from 'lucide-react';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 
-interface LandingProps {
-  onCreate: (boardName: string) => void;
-  onJoin: (boardLinkOrId: string) => void;
-}
-
-export default function Landing({ onCreate, onJoin }: LandingProps) {
+export default function Landing() {
   const {
     boardName,
     setBoardName,
     joinValue,
     setJoinValue,
     canCreate,
+    canJoin,
     handleCreate,
     handleJoin,
-  } = useCollabBoardForm({ onCreate, onJoin, defaultBoardName: 'Sprint 12' });
-
+  } = useCollabBoardForm();
   return (
     <div className="board-card">
       <div className="board-content">
@@ -39,7 +32,6 @@ export default function Landing({ onCreate, onJoin }: LandingProps) {
             className="board-input"
             value={boardName}
             onChange={(e) => setBoardName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             placeholder="Board name"
           />
           <Button
@@ -60,13 +52,12 @@ export default function Landing({ onCreate, onJoin }: LandingProps) {
             className="board-input"
             value={joinValue}
             onChange={(e) => setJoinValue(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
             placeholder="Paste a board link or ID"
           />
           <Button
             className="board-btn "
             onClick={handleJoin}
-            disabled={!canCreate}
+            disabled={!canJoin}
           >
             Join
           </Button>

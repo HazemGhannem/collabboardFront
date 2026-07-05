@@ -6,19 +6,20 @@ export interface CardProps {
   color: { bgColor: String; textColor: string; borderColor: string };
   user: string;
   blur?: boolean;
-  coumId?: string;
+  columName?: string;
+  columId?: string;
 }
 
 // ____________________Column Component____________________
 export interface ColumnProps {
   id: string;
-  title: string;
+  name: string;
   cards: CardProps[];
 }
 // ____________________Board Component____________________
 
 export interface ColumnData {
   id: string;
-  title: string;
+  name: string;
   cards: CardProps[];
 }

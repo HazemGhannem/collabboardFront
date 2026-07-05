@@ -1,36 +1,42 @@
 'use client';
 
+import { api } from '@/utils/api';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMemberActions } from './useMemberActions';
 
-interface UseCollabBoardFormOptions {
-  onCreate: (boardName: string) => void;
-  onJoin: (boardLinkOrId: string) => void;
-  defaultBoardName?: string;
-}
-
-/**
- * Holds the two independent inputs on the CollabBoard card — the new-board
- * name and the join-existing field — and validates before calling out.
- */
-export function useCollabBoardForm({
-  onCreate,
-  onJoin,
-  defaultBoardName = '',
-}: UseCollabBoardFormOptions) {
-  const [boardName, setBoardName] = useState(defaultBoardName);
+export function useCollabBoardForm() {
+  const router = useRouter();
+  const { addMember } = useMemberActions();
+  const [boardName, setBoardName] = useState('');
   const [joinValue, setJoinValue] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canCreate = boardName.trim().length > 0;
   const canJoin = joinValue.trim().length > 0;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!canCreate) return;
-    onCreate(boardName.trim());
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: response } = await api.post('/boards', {
+        name: boardName,
+      });
+      if (response.success) return router.push(`/board/${response.data._id}`);
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!canJoin) return;
-    onJoin(joinValue.trim());
+    console.log(joinValue);
+    await addMember(joinValue);
   };
 
   return {
@@ -40,6 +46,8 @@ export function useCollabBoardForm({
     setJoinValue,
     canCreate,
     canJoin,
+    error,
+    loading,
     handleCreate,
     handleJoin,
   };

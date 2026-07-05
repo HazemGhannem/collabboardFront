@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Geist } from 'next/font/google';
 import './globals.css';
 import NavBar from '@/components/nav/NavBar';
-import { AuthProvider } from '@/context/AuthContext';
+import { Providers } from '@/components/Providers'; // ← new
 
 const geist = Geist({ subsets: ['latin'] });
 
@@ -21,10 +21,10 @@ export default function RootLayout({
       <body
         className={`${geist.className} bg-[var(--surface-1)] text-[var(--text-primary)] antialiased`}
       >
-        <AuthProvider>
+        <Providers>
           <NavBar />
           {children}
-        </AuthProvider>
+        </Providers>
       </body>
     </html>
   );

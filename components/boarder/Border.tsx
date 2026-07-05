@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -14,144 +14,213 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import Column from './Column';
 import Card from './Card';
-import { CardProps, ColumnData } from '@/utils/ComponentsProps';
+import { type CardProps, type ColumnData } from '@/utils/ComponentsProps';
+import { useBoardActions } from '@/hooks/useBoardActions';
+import { useBoardSocket } from '@/hooks/useBoardSocket';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setColumns } from '@/store/slices/boardSlice';
+import { useParams } from 'next/navigation';
+import Spinner from '../ui/Spinner';
+import ErrorFetching from '../error/ErrorFetching';
 
-const INITIAL_COLUMNS: ColumnData[] = [
-  {
-    id: 'todo',
-    title: 'To Do',
-    cards: [
-      {
-        id: 'card-1',
-        title: 'Task 1',
-        category: 'Design',
-        color: {
-          textColor: 'text-orange-500',
-          bgColor: 'bg-orange-500',
-          borderColor: 'border-l-orange-500',
-        },
-        user: 'AG',
-      },
-    ],
-  },
-  {
-    id: 'inprogress',
-    title: 'In Progress',
-    cards: [
-      {
-        id: 'card-2',
-        title: 'Task 2',
-        category: 'Dev',
-        color: {
-          textColor: 'text-blue-500',
-          bgColor: 'bg-blue-500',
-          borderColor: 'border-l-blue-500',
-        },
-        user: 'AG',
-      },
-    ],
-  },
-  {
-    id: 'done',
-    title: 'Done',
-    cards: [
-      {
-        id: 'card-3',
-        title: 'Task 6',
-        category: 'QA',
-        color: {
-          textColor: 'text-green-500',
-          bgColor: 'bg-green-500',
-          borderColor: 'border-l-green-500',
-        },
-        user: 'AG',
-      },
-    ],
-  },
-];
+// ─── Category → Tailwind color map ───────────────────────────────────────────
 
-// Find which column a card belongs to
+const CATEGORY_COLORS: Record<
+  string,
+  { textColor: string; bgColor: string; borderColor: string }
+> = {
+  Design: {
+    textColor: 'text-orange-500',
+    bgColor: 'bg-orange-500',
+    borderColor: 'border-l-orange-500',
+  },
+  Dev: {
+    textColor: 'text-blue-500',
+    bgColor: 'bg-blue-500',
+    borderColor: 'border-l-blue-500',
+  },
+  QA: {
+    textColor: 'text-green-500',
+    bgColor: 'bg-green-500',
+    borderColor: 'border-l-green-500',
+  },
+  Backend: {
+    textColor: 'text-purple-500',
+    bgColor: 'bg-purple-500',
+    borderColor: 'border-l-purple-500',
+  },
+  Frontend: {
+    textColor: 'text-cyan-500',
+    bgColor: 'bg-cyan-500',
+    borderColor: 'border-l-cyan-500',
+  },
+  Auth: {
+    textColor: 'text-yellow-500',
+    bgColor: 'bg-yellow-500',
+    borderColor: 'border-l-yellow-500',
+  },
+  Default: {
+    textColor: 'text-gray-500',
+    bgColor: 'bg-gray-500',
+    borderColor: 'border-l-gray-500',
+  },
+};
+
+function getCategoryColor(category: string) {
+  return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.Default;
+}
+
 function findColumnOfCard(columns: ColumnData[], cardId: string) {
   return columns.find((col) => col.cards.some((c) => c.id === cardId));
 }
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export default function Board() {
-  const [columns, setColumns] = useState<ColumnData[]>(INITIAL_COLUMNS);
   const [activeCard, setActiveCard] = useState<CardProps | null>(null);
 
+  // Captures the original column at drag start — by the time onDragEnd fires,
+  // Redux has already been mutated optimistically so findColumnOfCard is unreliable
+  const dragFromColRef = useRef<string | null>(null);
+
+  const { id } = useParams<{ id: string }>();
+  const dispatch = useAppDispatch();
+  const { getBoardById, loading, error, board } = useBoardActions();
+  const columns = useAppSelector((s) => s.board.columns);
+
+  // ← Only socket system — no socketRef, no io() in this file
+  const { emitMoveCard } = useBoardSocket(id);
+
+  // ── Fetch board on mount ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!id) return;
+    getBoardById(id);
+  }, [id]);
+
+  // ── Map API response → Redux columns ───────────────────────────────────────
+
+  useEffect(() => {
+    if (!board?.data?.columns) return;
+    dispatch(
+      setColumns(
+        board.data.columns.map((col: any) => ({
+          id: col._id,
+          name: col.title,
+          cards: col.cards.map((card: any) => ({
+            id: card._id,
+            title: card.title,
+            category: card.category ?? '',
+            user: card.assigneeId ?? '',
+            blur: false,
+            color: getCategoryColor(card.category ?? ''),
+          })),
+        })),
+      ),
+    );
+  }, [board]);
+
+  // ── DnD ────────────────────────────────────────────────────────────────────
+
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      // Require 5px movement before drag starts — prevents misfire on click
-      activationConstraint: { distance: 5 },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
   const onDragStart = ({ active }: DragStartEvent) => {
     const col = findColumnOfCard(columns, active.id as string);
     const card = col?.cards.find((c) => c.id === active.id);
+    dragFromColRef.current = col?.id ?? null;
     if (card) setActiveCard(card);
   };
 
   const onDragOver = ({ active, over }: DragOverEvent) => {
     if (!over) return;
 
-    const activeColId = findColumnOfCard(columns, active.id as string)?.id;
-    // over.id can be a column id or a card id
-    const overColId =
-      columns.find((c) => c.id === over.id)?.id ??
-      findColumnOfCard(columns, over.id as string)?.id;
+    const fromCol = findColumnOfCard(columns, active.id as string);
+    const toCol =
+      columns.find((c) => c.id === over.id) ??
+      findColumnOfCard(columns, over.id as string);
 
-    if (!activeColId || !overColId || activeColId === overColId) return;
+    if (!fromCol || !toCol || fromCol.id === toCol.id) return;
 
-    // Move card to new column immediately for smooth visual feedback
-    setColumns((prev) => {
-      const activeCol = prev.find((c) => c.id === activeColId)!;
-      const overCol = prev.find((c) => c.id === overColId)!;
-      const card = activeCol.cards.find((c) => c.id === active.id)!;
+    const overCardIndex = toCol.cards.findIndex((c) => c.id === over.id);
+    const toIndex = overCardIndex >= 0 ? overCardIndex : toCol.cards.length;
 
-      const overIndex = overCol.cards.findIndex((c) => c.id === over.id);
-      const insertAt = overIndex >= 0 ? overIndex : overCol.cards.length;
-
-      return prev.map((col) => {
-        if (col.id === activeColId) {
-          return { ...col, cards: col.cards.filter((c) => c.id !== active.id) };
-        }
-        if (col.id === overColId) {
-          const newCards = [...col.cards];
-          newCards.splice(insertAt, 0, card);
-          return { ...col, cards: newCards };
-        }
-        return col;
-      });
-    });
+    // Optimistic UI update
+    dispatch(
+      setColumns(
+        columns.map((col) => {
+          if (col.id === fromCol.id)
+            return {
+              ...col,
+              cards: col.cards.filter((c) => c.id !== active.id),
+            };
+          if (col.id === toCol.id) {
+            const card = fromCol.cards.find((c) => c.id === active.id)!;
+            const newCards = [...col.cards];
+            newCards.splice(toIndex, 0, card);
+            return { ...col, cards: newCards };
+          }
+          return col;
+        }),
+      ),
+    );
   };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
     setActiveCard(null);
     if (!over) return;
 
-    const activeColId = findColumnOfCard(columns, active.id as string)?.id;
-    const overColId =
-      columns.find((c) => c.id === over.id)?.id ??
-      findColumnOfCard(columns, over.id as string)?.id;
+    const fromColId = dragFromColRef.current;
+    dragFromColRef.current = null;
 
-    if (!activeColId || !overColId) return;
+    const toCol =
+      columns.find((c) => c.id === over.id) ??
+      findColumnOfCard(columns, over.id as string);
+
+    if (!fromColId || !toCol) return;
 
     // Same column — reorder
-    if (activeColId === overColId) {
-      setColumns((prev) =>
-        prev.map((col) => {
-          if (col.id !== activeColId) return col;
-          const oldIndex = col.cards.findIndex((c) => c.id === active.id);
-          const newIndex = col.cards.findIndex((c) => c.id === over.id);
-          return { ...col, cards: arrayMove(col.cards, oldIndex, newIndex) };
-        }),
-      );
+    if (fromColId === toCol.id) {
+      const oldIndex = toCol.cards.findIndex((c) => c.id === active.id);
+      const newIndex = toCol.cards.findIndex((c) => c.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+        dispatch(
+          setColumns(
+            columns.map((col) =>
+              col.id === toCol.id
+                ? { ...col, cards: arrayMove(col.cards, oldIndex, newIndex) }
+                : col,
+            ),
+          ),
+        );
+      }
     }
 
-    // TODO: emit socket event here when Socket.IO is wired
-    // socket.emit('card:move', { boardId, cardId: active.id, fromColumnId: activeColId, toColumnId: overColId })
+    const toIndex = toCol.cards.findIndex((c) => c.id === over.id);
+
+    // Persist to DB + broadcast to other users via the hook
+    emitMoveCard({
+      cardId: active.id as string,
+      fromColumnId: fromColId,
+      toColumnId: toCol.id,
+      toIndex: toIndex >= 0 ? toIndex : toCol.cards.length,
+    });
   };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (loading)
+    return (
+      <div className="flex min-h-[50vh] w-full items-center justify-center p-6">
+        <Spinner className="h-10 w-10 animate-spin rounded-full border-2 border-solid border-amber-600 border-t-transparent" />
+      </div>
+    );
+
+  if (error)
+    return (
+      <ErrorFetching error={error} onRetry={() => id && getBoardById(id)} />
+    );
 
   return (
     <DndContext
@@ -166,11 +235,10 @@ export default function Board() {
         ))}
       </div>
 
-      {/* Ghost card that follows the cursor while dragging */}
       <DragOverlay>
         {activeCard && (
           <div className="rotate-2 scale-105 opacity-90">
-            <Card {...activeCard} />
+            <Card {...activeCard}  />
           </div>
         )}
       </DragOverlay>
