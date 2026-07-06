@@ -11,7 +11,23 @@ export function useMemberActions() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.post(`/boards/${code}/join`);
+      const { data } = await api.post(`/invite/${code}/join`);
+      return data;
+    } catch (err: any) {
+      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
+  const createInvite = async (boardId: string,body:any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.post(
+        `/invite/${boardId}/create-invite-code`,
+        body,
+      );
       return data;
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
@@ -21,11 +37,12 @@ export function useMemberActions() {
     }
   };
 
+
   const removeMember = async (boardId: string, targetUserId: string) => {
     setLoading(true);
     setError(null);
     try {
-      await api.delete(`/boards/${boardId}/members/${targetUserId}`);
+      await api.delete(`/member/${boardId}/members/${targetUserId}`);
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
     } finally {
@@ -37,7 +54,7 @@ export function useMemberActions() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await api.get(`/boards/${boardId}/members`);
+      const { data } = await api.get(`/member/${boardId}/members`);
       return data;
     } catch (err: any) {
       setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
@@ -54,5 +71,6 @@ export function useMemberActions() {
     loading,
     error,
     setError,
+    createInvite,
   };
 }

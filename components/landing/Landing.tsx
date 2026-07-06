@@ -13,7 +13,9 @@ export default function Landing() {
     canJoin,
     handleCreate,
     handleJoin,
+    memberError,
   } = useCollabBoardForm();
+  console.log(memberError);
   return (
     <div className="board-card">
       <div className="board-content">

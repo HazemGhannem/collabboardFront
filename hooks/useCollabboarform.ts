@@ -7,7 +7,7 @@ import { useMemberActions } from './useMemberActions';
 
 export function useCollabBoardForm() {
   const router = useRouter();
-  const { addMember } = useMemberActions();
+  const { addMember,error:memberError } = useMemberActions();
   const [boardName, setBoardName] = useState('');
   const [joinValue, setJoinValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -50,5 +50,6 @@ export function useCollabBoardForm() {
     loading,
     handleCreate,
     handleJoin,
+    memberError,
   };
 }
