@@ -1,8 +1,13 @@
-'use client'
+'use client';
+
 import Board from '@/components/boarder/Border';
 
-const page = () => {
-  return <Board />;
+const Page = () => {
+  return (
+    <div className="w-full">
+      <Board />
+    </div>
+  );
 };
 
-export default page;
+export default Page;

@@ -37,21 +37,34 @@ export interface IColumn {
   order: number;
   cards: ICard[];
 }
+export type Role = 'owner' | 'editor' | 'viewer';
 
 export interface IBoard {
   success: Boolean;
   data: {
     _id: string;
-    name: string;
-    createdBy: {
+    success: Boolean;
+    board: {
+      _id: string;
+      name: string;
+      createdBy: {
+        _id: string;
+        firstName: string;
+        lastName: string;
+        email: string;
+        image?: string;
+      };
+      columns: IColumn[];
+      createdAt: string;
+      updatedAt: string;
+    };
+    joinedAt: string;
+    role: Role;
+    user: {
       _id: string;
       firstName: string;
       lastName: string;
       email: string;
-      image?: string;
     };
-    columns: IColumn[];
-    createdAt: string;
-    updatedAt: string;
   };
 }

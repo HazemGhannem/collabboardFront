@@ -7,7 +7,7 @@ export function useMemberActions() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addMember = async (code: string) => {
+  const joinMember = async (code: string) => {
     setLoading(true);
     setError(null);
     try {
@@ -26,7 +26,7 @@ export function useMemberActions() {
     try {
       const { data } = await api.post(
         `/invite/${boardId}/create-invite-code`,
-        body,
+        {body},
       );
       return data;
     } catch (err: any) {
@@ -65,7 +65,7 @@ export function useMemberActions() {
   };
 
   return {
-    addMember,
+    joinMember,
     removeMember,
     getMembers,
     loading,

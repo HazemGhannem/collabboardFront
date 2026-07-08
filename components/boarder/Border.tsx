@@ -22,75 +22,40 @@ import { setColumns } from '@/store/slices/boardSlice';
 import { useParams } from 'next/navigation';
 import Spinner from '../ui/Spinner';
 import ErrorFetching from '../error/ErrorFetching';
-
-// ─── Category → Tailwind color map ───────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<
-  string,
-  { textColor: string; bgColor: string; borderColor: string }
-> = {
-  Design: {
-    textColor: 'text-orange-500',
-    bgColor: 'bg-orange-500',
-    borderColor: 'border-l-orange-500',
-  },
-  Dev: {
-    textColor: 'text-blue-500',
-    bgColor: 'bg-blue-500',
-    borderColor: 'border-l-blue-500',
-  },
-  QA: {
-    textColor: 'text-green-500',
-    bgColor: 'bg-green-500',
-    borderColor: 'border-l-green-500',
-  },
-  Backend: {
-    textColor: 'text-purple-500',
-    bgColor: 'bg-purple-500',
-    borderColor: 'border-l-purple-500',
-  },
-  Frontend: {
-    textColor: 'text-cyan-500',
-    bgColor: 'bg-cyan-500',
-    borderColor: 'border-l-cyan-500',
-  },
-  Auth: {
-    textColor: 'text-yellow-500',
-    bgColor: 'bg-yellow-500',
-    borderColor: 'border-l-yellow-500',
-  },
-  Default: {
-    textColor: 'text-gray-500',
-    bgColor: 'bg-gray-500',
-    borderColor: 'border-l-gray-500',
-  },
-};
-
-function getCategoryColor(category: string) {
-  return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.Default;
-}
-
-function findColumnOfCard(columns: ColumnData[], cardId: string) {
-  return columns.find((col) => col.cards.some((c) => c.id === cardId));
-}
+import AddColumn from './AddColum';
+import { usePermissions } from '@/hooks/usePermissions';
+import {
+  findColumnOfCard,
+  getCategoryColor,
+  getColorIndexForUser,
+  HEX_COLORS,
+} from '@/utils/utils';
+import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Board() {
   const [activeCard, setActiveCard] = useState<CardProps | null>(null);
-
   // Captures the original column at drag start — by the time onDragEnd fires,
   // Redux has already been mutated optimistically so findColumnOfCard is unreliable
   const dragFromColRef = useRef<string | null>(null);
+  const { isEditor } = usePermissions();
 
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
   const { getBoardById, loading, error, board } = useBoardActions();
   const columns = useAppSelector((s) => s.board.columns);
-
   // ← Only socket system — no socketRef, no io() in this file
-  const { emitMoveCard } = useBoardSocket(id);
+  const { cursors } = useBoardSocket(id);
+  const { emitCursorMove, emitMoveCard } = useBoardSocketActions(id);
 
+  const boardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = boardRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    emitCursorMove(e.clientX - rect.left, e.clientY - rect.top);
+  };
   // ── Fetch board on mount ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -101,10 +66,10 @@ export default function Board() {
   // ── Map API response → Redux columns ───────────────────────────────────────
 
   useEffect(() => {
-    if (!board?.data?.columns) return;
+    if (!board?.columns) return;
     dispatch(
       setColumns(
-        board.data.columns.map((col: any) => ({
+        board.columns.map((col: any) => ({
           id: col._id,
           name: col.title,
           cards: col.cards.map((card: any) => ({
@@ -123,10 +88,13 @@ export default function Board() {
   // ── DnD ────────────────────────────────────────────────────────────────────
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
   );
 
   const onDragStart = ({ active }: DragStartEvent) => {
+    if (!isEditor) return;
     const col = findColumnOfCard(columns, active.id as string);
     const card = col?.cards.find((c) => c.id === active.id);
     dragFromColRef.current = col?.id ?? null;
@@ -134,7 +102,7 @@ export default function Board() {
   };
 
   const onDragOver = ({ active, over }: DragOverEvent) => {
-    if (!over) return;
+    if (!isEditor || !over) return;
 
     const fromCol = findColumnOfCard(columns, active.id as string);
     const toCol =
@@ -168,6 +136,10 @@ export default function Board() {
   };
 
   const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!isEditor) {
+      setActiveCard(null);
+      return;
+    }
     setActiveCard(null);
     if (!over) return;
 
@@ -229,16 +201,49 @@ export default function Board() {
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
     >
-      <div className="grid grid-cols-1 gap-6 p-6 md:grid-cols-3">
-        {columns.map((col) => (
-          <Column key={col.id} {...col} />
+      <div ref={boardRef} onMouseMove={handleMouseMove} className="relative">
+        <div className="flex w-full items-start gap-6 overflow-x-auto p-6">
+          {columns.map((col) => (
+            <div key={col.id} className="min-w-[280px] flex-1">
+              <Column {...col} boardId={id} />
+            </div>
+          ))}
+          {isEditor && (
+            <div className="min-w-[280px] flex-1">
+              <AddColumn boardId={id} />
+            </div>
+          )}
+        </div>
+        {/* Remote cursors */}
+        {Object.values(cursors).map((c) => (
+          <div
+            key={c.userId}
+            className="pointer-events-none absolute z-50 flex items-center gap-1.5 transition-[left,top] duration-75 ease-linear"
+            style={{ left: c.x, top: c.y }}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill={HEX_COLORS[getColorIndexForUser(c.userId)]}
+            >
+              <path d="M2 2 L2 15 L6 11.5 L8.5 16 L10.5 15 L8 10.5 L13 10.5 Z" />
+            </svg>
+            <span
+              className="rounded px-1.5 py-0.5 text-xs font-medium text-white whitespace-nowrap"
+              style={{
+                backgroundColor: HEX_COLORS[getColorIndexForUser(c.userId)],
+              }}
+            >
+              {c.firstName}
+            </span>
+          </div>
         ))}
       </div>
-
       <DragOverlay>
         {activeCard && (
           <div className="rotate-2 scale-105 opacity-90">
-            <Card {...activeCard}  />
+            <Card {...activeCard} />
           </div>
         )}
       </DragOverlay>

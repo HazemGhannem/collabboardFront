@@ -14,6 +14,7 @@ export interface CardProps {
 export interface ColumnProps {
   id: string;
   name: string;
+  boardId: string;
   cards: CardProps[];
 }
 // ____________________Board Component____________________
@@ -22,4 +23,19 @@ export interface ColumnData {
   id: string;
   name: string;
   cards: CardProps[];
+}
+
+// ____________________socket state____________________
+export interface PresenceUser {
+  userId: string;
+  firstName: string;
+  lastName: string;
+}
+// ____________________socket Cursor Position____________________
+export interface CursorPosition {
+  userId: string;
+  firstName: string;
+  lastName: string;
+  x: number;
+  y: number;
 }

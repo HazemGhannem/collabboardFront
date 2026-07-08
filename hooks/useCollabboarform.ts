@@ -7,7 +7,7 @@ import { useMemberActions } from './useMemberActions';
 
 export function useCollabBoardForm() {
   const router = useRouter();
-  const { addMember,error:memberError } = useMemberActions();
+  const { joinMember, error: memberError } = useMemberActions();
   const [boardName, setBoardName] = useState('');
   const [joinValue, setJoinValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -35,8 +35,9 @@ export function useCollabBoardForm() {
 
   const handleJoin = async () => {
     if (!canJoin) return;
-    console.log(joinValue);
-    await addMember(joinValue);
+    const { boardId } = await joinMember(joinValue);
+    router.push(`/board/${boardId}`);
+    setJoinValue('');
   };
 
   return {

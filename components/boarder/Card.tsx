@@ -1,6 +1,6 @@
 'use client';
 
-import { useBoardSocket } from '@/hooks/useBoardSocket';
+import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { deleteCard } from '@/store/slices/boardSlice';
 import { IBoard } from '@/types/type';
@@ -30,10 +30,10 @@ const Card = ({
   const dispatch = useAppDispatch();
 
   const boardId = useAppSelector((s) => (s.board.board as IBoard)?.data?._id);
-  const { emitDeleteCard } = useBoardSocket(boardId);
+  const { emitDeleteCard } = useBoardSocketActions(boardId);
 
   const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     if (!columId || !boardId) return;
     dispatch(deleteCard({ columnId: columId, cardId: id }));
     emitDeleteCard(columId, id);

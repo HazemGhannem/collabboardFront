@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useAppDispatch } from '@/store/hooks';
+import { useEffect, useRef, useState } from 'react';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   moveCard,
   setColumns,
   addCard,
   deleteCard,
   updateCardInColumn,
+  setOnlineUsers,
 } from '@/store/slices/boardSlice';
-import type { ColumnData } from '@/utils/ComponentsProps';
+import type { ColumnData, CursorPosition } from '@/utils/ComponentsProps';
 import socket from '@/utils/socket';
 
 function mapApiColumnsToColumnData(apiColumns: any[]): ColumnData[] {
-  // same mapping helper as before — centralised here so Board.tsx is clean
   return apiColumns.map((col) => ({
     id: col._id,
     name: col.title,
@@ -23,131 +23,105 @@ function mapApiColumnsToColumnData(apiColumns: any[]): ColumnData[] {
       category: card.category ?? '',
       user: card.assigneeId ?? '',
       blur: false,
-      color: card.color ?? { textColor: '', bgColor: '', borderColor: '' },
+      color: card.color ?? {
+        textColor: '',
+        bgColor: '',
+        borderColor: '',
+      },
     })),
   }));
 }
 
-/**
- * Handles ALL board socket events for a given boardId.
- * The component just calls this hook — no socket imports, no emit calls,
- * no event listener cleanup needed in the component itself.
- *
- * Emitters are returned so the component (or other hooks) can trigger
- * actions without knowing anything about the socket layer.
- */
-export function useBoardSocket(boardId: string | undefined) {
+export function useBoardSocket(boardId?: string) {
   const dispatch = useAppDispatch();
+  const user = useAppSelector((s) => s.auth.user);
+
+  const [cursors, setCursors] = useState<Record<string, CursorPosition>>({});
+
+  const joinedBoard = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!boardId) return;
+    if (!boardId || !user) return;
+
     if (!socket.connected) socket.connect();
 
-    socket.emit('board:join', boardId);
+    if (joinedBoard.current !== boardId) {
+      if (joinedBoard.current) {
+        socket.emit('board:leave', joinedBoard.current);
+      }
 
-    // ── Incoming events from other users ─────────────────────────────────────
+      joinedBoard.current = boardId;
 
-    socket.on(
-      'card:moved',
-      (payload: {
-        boardId: string;
-        cardId: string;
-        fromColumnId: string;
-        toColumnId: string;
-        toIndex: number;
-      }) => {
-        dispatch(moveCard(payload));
-      },
-    );
+      socket.emit('board:join', {
+        boardId,
+        user: {
+          userId: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+      });
 
-    socket.on(
-      'card:added',
-      (payload: { columnId: string; card: ColumnData['cards'][0] }) => {
-        dispatch(addCard(payload));
-      },
-    );
+      socket.emit('presence:sync', { boardId });
+    }
 
-    socket.on(
-      'card:deleted',
-      (payload: { columnId: string; cardId: string }) => {
-        dispatch(deleteCard(payload));
-      },
-    );
+    const onCardMoved = (payload: any) => dispatch(moveCard(payload));
 
-    socket.on(
-      'card:updated',
-      (payload: { columnId: string; cardId: string; card: any }) => {
-        dispatch(updateCardInColumn(payload));
-      },
-    );
+    const onCardAdded = (payload: any) => dispatch(addCard(payload));
 
-    socket.on('board:updated', (apiColumns: any[]) => {
-      dispatch(setColumns(mapApiColumnsToColumnData(apiColumns)));
-    });
+    const onCardDeleted = (payload: any) => dispatch(deleteCard(payload));
 
-    // ── Cleanup — leave room and remove listeners when board unmounts ─────────
+    const onCardUpdated = (payload: any) =>
+      dispatch(updateCardInColumn(payload));
+
+    const onBoardUpdated = (columns: any[]) =>
+      dispatch(setColumns(mapApiColumnsToColumnData(columns)));
+
+    const onPresenceUpdate = (users: any) => dispatch(setOnlineUsers(users));
+
+    const onCursorMoved = (payload: CursorPosition) => {
+      setCursors((prev) => ({
+        ...prev,
+        [payload.userId]: payload,
+      }));
+    };
+
+    const onCursorLeft = ({ userId }: { userId: string }) => {
+      setCursors((prev) => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    };
+
+    socket.on('card:moved', onCardMoved);
+    socket.on('card:added', onCardAdded);
+    socket.on('card:deleted', onCardDeleted);
+    socket.on('card:updated', onCardUpdated);
+    socket.on('board:updated', onBoardUpdated);
+    socket.on('presence:update', onPresenceUpdate);
+    socket.on('cursor:moved', onCursorMoved);
+    socket.on('cursor:left', onCursorLeft);
 
     return () => {
-      socket.emit('board:leave', boardId);
-      socket.off('card:moved');
-      socket.off('card:added');
-      socket.off('card:deleted');
-      socket.off('card:updated');
-      socket.off('board:updated');
+      socket.off('card:moved', onCardMoved);
+      socket.off('card:added', onCardAdded);
+      socket.off('card:deleted', onCardDeleted);
+      socket.off('card:updated', onCardUpdated);
+      socket.off('board:updated', onBoardUpdated);
+      socket.off('presence:update', onPresenceUpdate);
+      socket.off('cursor:moved', onCursorMoved);
+      socket.off('cursor:left', onCursorLeft);
     };
-  }, [boardId]);
+  }, [boardId, user, dispatch]);
 
-  // ── Emitters — call these instead of using socket directly in components ───
+  useEffect(() => {
+    return () => {
+      if (joinedBoard.current) {
+        socket.emit('board:leave', joinedBoard.current);
+        joinedBoard.current = null;
+      }
+    };
+  }, []);
 
-  const emitMoveCard = (payload: {
-    cardId: string;
-    fromColumnId: string;
-    toColumnId: string;
-    toIndex: number;
-  }) => {
-    console.log('emitting card:move', payload, boardId);
-    socket.emit('card:move', { boardId, ...payload }, (err: string | null) => {
-      if (err) console.error('card:move failed:', err);
-    });
-  };
-
-  const emitAddCard = (
-    columnId: string,
-    title: string,
-    options?: { color?: any; description?: string },
-  ) => {
-    socket.emit(
-      'card:add',
-      { boardId, columnId, title, ...options },
-      (err: string | null, card?: any) => {
-        if (err) console.error('card:add failed:', err);
-      },
-    );
-  };
-
-  const emitDeleteCard = (columnId: string, cardId: string) => {
-    socket.emit(
-      'card:delete',
-      { boardId, columnId, cardId },
-      (err: string | null) => {
-        if (err) console.error('card:delete failed:', err);
-      },
-    );
-  };
-
-  const emitUpdateCard = (
-    columnId: string,
-    cardId: string,
-    data: Record<string, any>,
-  ) => {
-    socket.emit(
-      'card:update',
-      { boardId, columnId, cardId, data },
-      (err: string | null) => {
-        if (err) console.error('card:update failed:', err);
-      },
-    );
-  };
-
-  return { emitMoveCard, emitAddCard, emitDeleteCard, emitUpdateCard };
+  return { cursors };
 }
