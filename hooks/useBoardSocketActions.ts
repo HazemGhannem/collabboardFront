@@ -76,7 +76,11 @@ export function useBoardSocketActions(boardId?: string) {
       y,
     });
   };
+const emitLeaveBoard = () => {
+  if (!boardId) return;
 
+  socket.emit('board:leave', boardId);
+};
   return {
     emitMoveCard,
     emitAddCard,
@@ -84,5 +88,6 @@ export function useBoardSocketActions(boardId?: string) {
     emitUpdateCard,
     emitAddColumn,
     emitCursorMove,
+    emitLeaveBoard,
   };
 }

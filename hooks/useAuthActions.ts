@@ -4,15 +4,16 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { LoginData, SignupData } from '@/types/type';
 import { api } from '@/utils/api';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/authSlice';
-import { logout as disconnect} from '@/store/slices/authSlice';
+import { logout as disconnect } from '@/store/slices/authSlice';
+import { useBoardSocketActions } from './useBoardSocketActions';
 export function useAuthActions() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const { emitLeaveBoard } = useBoardSocketActions();
   const signup = async (data: SignupData) => {
     setLoading(true);
     setError(null);
@@ -41,7 +42,9 @@ export function useAuthActions() {
     }
   };
   const logout = async () => {
-      dispatch(disconnect());
+    dispatch(disconnect());
+    emitLeaveBoard();
+    router.push('/login');
   };
 
   return { login, signup, loading, error, setError, logout };

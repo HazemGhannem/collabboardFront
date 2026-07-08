@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -14,9 +14,11 @@ import {
 import { arrayMove } from '@dnd-kit/sortable';
 import Column from './Column';
 import Card from './Card';
+import CursorOverlay from './CursorOverlay';
 import { type CardProps, type ColumnData } from '@/utils/ComponentsProps';
 import { useBoardActions } from '@/hooks/useBoardActions';
 import { useBoardSocket } from '@/hooks/useBoardSocket';
+import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setColumns } from '@/store/slices/boardSlice';
 import { useParams } from 'next/navigation';
@@ -24,38 +26,38 @@ import Spinner from '../ui/Spinner';
 import ErrorFetching from '../error/ErrorFetching';
 import AddColumn from './AddColum';
 import { usePermissions } from '@/hooks/usePermissions';
-import {
-  findColumnOfCard,
-  getCategoryColor,
-  getColorIndexForUser,
-  HEX_COLORS,
-} from '@/utils/utils';
-import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
-
-// ─── Component ────────────────────────────────────────────────────────────────
+import { findColumnOfCard, getCategoryColor } from '@/utils/utils';
 
 export default function Board() {
   const [activeCard, setActiveCard] = useState<CardProps | null>(null);
   // Captures the original column at drag start — by the time onDragEnd fires,
   // Redux has already been mutated optimistically so findColumnOfCard is unreliable
   const dragFromColRef = useRef<string | null>(null);
-  const { isEditor } = usePermissions();
 
+  const { isEditor } = usePermissions();
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
+
   const { getBoardById, loading, error, board } = useBoardActions();
   const columns = useAppSelector((s) => s.board.columns);
-  // ← Only socket system — no socketRef, no io() in this file
+  const currentUserId = useAppSelector((s) => s.auth.user?._id);
+
   const { cursors } = useBoardSocket(id);
   const { emitCursorMove, emitMoveCard } = useBoardSocketActions(id);
 
   const boardRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = boardRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    emitCursorMove(e.clientX - rect.left, e.clientY - rect.top);
-  };
+  // Viewers don't need to broadcast a cursor — skip the work entirely
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isEditor) return;
+      const rect = boardRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      emitCursorMove(e.clientX - rect.left, e.clientY - rect.top);
+    },
+    [isEditor, emitCursorMove],
+  );
+
   // ── Fetch board on mount ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -83,102 +85,105 @@ export default function Board() {
         })),
       ),
     );
-  }, [board]);
+  }, [board, dispatch]);
 
   // ── DnD ────────────────────────────────────────────────────────────────────
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const onDragStart = ({ active }: DragStartEvent) => {
-    if (!isEditor) return;
-    const col = findColumnOfCard(columns, active.id as string);
-    const card = col?.cards.find((c) => c.id === active.id);
-    dragFromColRef.current = col?.id ?? null;
-    if (card) setActiveCard(card);
-  };
+  const onDragStart = useCallback(
+    ({ active }: DragStartEvent) => {
+      if (!isEditor) return;
+      const col = findColumnOfCard(columns, active.id as string);
+      const card = col?.cards.find((c) => c.id === active.id);
+      dragFromColRef.current = col?.id ?? null;
+      if (card) setActiveCard(card);
+    },
+    [isEditor, columns],
+  );
 
-  const onDragOver = ({ active, over }: DragOverEvent) => {
-    if (!isEditor || !over) return;
+  const onDragOver = useCallback(
+    ({ active, over }: DragOverEvent) => {
+      if (!isEditor || !over) return;
 
-    const fromCol = findColumnOfCard(columns, active.id as string);
-    const toCol =
-      columns.find((c) => c.id === over.id) ??
-      findColumnOfCard(columns, over.id as string);
+      const fromCol = findColumnOfCard(columns, active.id as string);
+      const toCol =
+        columns.find((c) => c.id === over.id) ??
+        findColumnOfCard(columns, over.id as string);
 
-    if (!fromCol || !toCol || fromCol.id === toCol.id) return;
+      if (!fromCol || !toCol || fromCol.id === toCol.id) return;
 
-    const overCardIndex = toCol.cards.findIndex((c) => c.id === over.id);
-    const toIndex = overCardIndex >= 0 ? overCardIndex : toCol.cards.length;
+      const overCardIndex = toCol.cards.findIndex((c) => c.id === over.id);
+      const toIndex = overCardIndex >= 0 ? overCardIndex : toCol.cards.length;
 
-    // Optimistic UI update
-    dispatch(
-      setColumns(
-        columns.map((col) => {
-          if (col.id === fromCol.id)
-            return {
-              ...col,
-              cards: col.cards.filter((c) => c.id !== active.id),
-            };
-          if (col.id === toCol.id) {
-            const card = fromCol.cards.find((c) => c.id === active.id)!;
-            const newCards = [...col.cards];
-            newCards.splice(toIndex, 0, card);
-            return { ...col, cards: newCards };
-          }
-          return col;
-        }),
-      ),
-    );
-  };
+      // Optimistic UI update
+      dispatch(
+        setColumns(
+          columns.map((col) => {
+            if (col.id === fromCol.id)
+              return {
+                ...col,
+                cards: col.cards.filter((c) => c.id !== active.id),
+              };
+            if (col.id === toCol.id) {
+              const card = fromCol.cards.find((c) => c.id === active.id)!;
+              const newCards = [...col.cards];
+              newCards.splice(toIndex, 0, card);
+              return { ...col, cards: newCards };
+            }
+            return col;
+          }),
+        ),
+      );
+    },
+    [isEditor, columns, dispatch],
+  );
 
-  const onDragEnd = ({ active, over }: DragEndEvent) => {
-    if (!isEditor) {
+  const onDragEnd = useCallback(
+    ({ active, over }: DragEndEvent) => {
       setActiveCard(null);
-      return;
-    }
-    setActiveCard(null);
-    if (!over) return;
+      if (!isEditor || !over) return;
 
-    const fromColId = dragFromColRef.current;
-    dragFromColRef.current = null;
+      const fromColId = dragFromColRef.current;
+      dragFromColRef.current = null;
 
-    const toCol =
-      columns.find((c) => c.id === over.id) ??
-      findColumnOfCard(columns, over.id as string);
+      const toCol =
+        columns.find((c) => c.id === over.id) ??
+        findColumnOfCard(columns, over.id as string);
 
-    if (!fromColId || !toCol) return;
+      if (!fromColId || !toCol) return;
 
-    // Same column — reorder
-    if (fromColId === toCol.id) {
-      const oldIndex = toCol.cards.findIndex((c) => c.id === active.id);
-      const newIndex = toCol.cards.findIndex((c) => c.id === over.id);
-      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        dispatch(
-          setColumns(
-            columns.map((col) =>
-              col.id === toCol.id
-                ? { ...col, cards: arrayMove(col.cards, oldIndex, newIndex) }
-                : col,
+      // Same column — reorder
+      if (fromColId === toCol.id) {
+        const oldIndex = toCol.cards.findIndex((c) => c.id === active.id);
+        const newIndex = toCol.cards.findIndex((c) => c.id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          dispatch(
+            setColumns(
+              columns.map((col) =>
+                col.id === toCol.id
+                  ? { ...col, cards: arrayMove(col.cards, oldIndex, newIndex) }
+                  : col,
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
-    }
 
-    const toIndex = toCol.cards.findIndex((c) => c.id === over.id);
+      const toIndex = toCol.cards.findIndex((c) => c.id === over.id);
 
-    // Persist to DB + broadcast to other users via the hook
-    emitMoveCard({
-      cardId: active.id as string,
-      fromColumnId: fromColId,
-      toColumnId: toCol.id,
-      toIndex: toIndex >= 0 ? toIndex : toCol.cards.length,
-    });
-  };
+      // Persist to DB + broadcast to other users via the hook
+      emitMoveCard({
+        cardId: active.id as string,
+        fromColumnId: fromColId,
+        toColumnId: toCol.id,
+        toIndex: toIndex >= 0 ? toIndex : toCol.cards.length,
+      });
+    },
+    [isEditor, columns, dispatch, emitMoveCard],
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -214,32 +219,10 @@ export default function Board() {
             </div>
           )}
         </div>
-        {/* Remote cursors */}
-        {Object.values(cursors).map((c) => (
-          <div
-            key={c.userId}
-            className="pointer-events-none absolute z-50 flex items-center gap-1.5 transition-[left,top] duration-75 ease-linear"
-            style={{ left: c.x, top: c.y }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill={HEX_COLORS[getColorIndexForUser(c.userId)]}
-            >
-              <path d="M2 2 L2 15 L6 11.5 L8.5 16 L10.5 15 L8 10.5 L13 10.5 Z" />
-            </svg>
-            <span
-              className="rounded px-1.5 py-0.5 text-xs font-medium text-white whitespace-nowrap"
-              style={{
-                backgroundColor: HEX_COLORS[getColorIndexForUser(c.userId)],
-              }}
-            >
-              {c.firstName}
-            </span>
-          </div>
-        ))}
+
+        <CursorOverlay cursors={cursors} currentUserId={currentUserId} />
       </div>
+
       <DragOverlay>
         {activeCard && (
           <div className="rotate-2 scale-105 opacity-90">

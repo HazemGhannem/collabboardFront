@@ -6,7 +6,7 @@ import Input from '../ui/Input';
 import { useBoardActions } from '@/hooks/useBoardActions';
 
 interface AddColumnProps {
-  boardId:string
+  boardId: string;
 }
 
 export default function AddColumn({ boardId }: AddColumnProps) {
@@ -38,10 +38,10 @@ export default function AddColumn({ boardId }: AddColumnProps) {
       {!editing ? (
         <button
           onClick={() => setEditing(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-lg py-3 min-h-[40px] text-zinc-400 border border-dashed border-zinc-700 transition hover:bg-zinc-800 hover:text-white hover:border-zinc-500"
+          className="flex w-full items-center justify-center gap-2 cursor-pointer rounded-lg py-3 min-h-[40px] text-zinc-400 border border-dashed border-zinc-700 transition hover:bg-zinc-800 hover:text-white hover:border-zinc-500"
         >
           <Plus size={18} />
-          <span className="font-medium">Add Column</span>
+          <span className="font-medium ">Add Column</span>
         </button>
       ) : (
         <div className="flex flex-col gap-3">
