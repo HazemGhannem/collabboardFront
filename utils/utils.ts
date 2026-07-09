@@ -1,4 +1,4 @@
-import { ColumnData } from './ComponentsProps';
+import { IColumn } from '@/types/type';
 
 const SECRET = process.env.NEXT_PUBLIC_CRYPTO_SECRET ?? 'change-this-secret';
 
@@ -119,21 +119,6 @@ export function getCategoryColor(category: string) {
   return CATEGORY_COLORS[category] ?? CATEGORY_COLORS.Default;
 }
 
-export function findColumnOfCard(columns: ColumnData[], cardId: string) {
-  return columns.find((col) => col.cards.some((c) => c.id === cardId));
-}
-
-export function mapBoardColumns(columns: any[]) {
-  return columns.map((col) => ({
-    id: col._id,
-    name: col.title,
-    cards: col.cards.map((card: any) => ({
-      id: card._id,
-      title: card.title,
-      category: card.category ?? '',
-      user: card.assigneeId ?? '',
-      blur: false,
-      color: getCategoryColor(card.category ?? ''),
-    })),
-  }));
+export function findColumnOfCard(columns: IColumn[], cardId: string) {
+  return columns.find((col) => col.cards.some((c) => c._id === cardId));
 }

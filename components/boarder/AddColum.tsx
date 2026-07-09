@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Plus, X } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import Input from '../ui/Input';
-import { useBoardActions } from '@/hooks/useBoardActions';
+import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
 
 interface AddColumnProps {
   boardId: string;
@@ -12,12 +12,13 @@ interface AddColumnProps {
 export default function AddColumn({ boardId }: AddColumnProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
-  const { addColumToBoarder } = useBoardActions();
+  const { emitAddColumn } = useBoardSocketActions(boardId);
+
   const handleAdd = async () => {
     const value = name.trim();
     if (!value) return;
 
-    await addColumToBoarder(boardId, value);
+    await emitAddColumn(value);
     setName('');
     setEditing(false);
   };

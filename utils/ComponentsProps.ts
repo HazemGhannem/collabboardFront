@@ -1,37 +1,30 @@
-// ____________________CARD Component____________________
-export interface CardProps {
-  id: string;
-  title: string;
-  category: string;
-  color: { bgColor: String; textColor: string; borderColor: string };
-  user: string;
+import type { ICard, IColumn } from '@/types/type';
+
+// ─── Card Component ───────────────────────────────────────────────────────────
+// Extends ICard with UI-only fields (blur, columName, columId, color)
+
+export interface CardProps extends ICard {
+  color?: { bgColor: string; textColor: string; borderColor: string };
   blur?: boolean;
   columName?: string;
   columId?: string;
 }
 
-// ____________________Column Component____________________
-export interface ColumnProps {
-  id: string;
-  name: string;
+// ─── Column Component ─────────────────────────────────────────────────────────
+// Extends IColumn with boardId for actions
+
+export interface ColumnProps extends IColumn {
   boardId: string;
-  cards: CardProps[];
-}
-// ____________________Board Component____________________
-
-export interface ColumnData {
-  id: string;
-  name: string;
-  cards: CardProps[];
 }
 
-// ____________________socket state____________________
+// ─── Socket ───────────────────────────────────────────────────────────────────
+
 export interface PresenceUser {
   userId: string;
   firstName: string;
   lastName: string;
 }
-// ____________________socket Cursor Position____________________
+
 export interface CursorPosition {
   userId: string;
   firstName: string;

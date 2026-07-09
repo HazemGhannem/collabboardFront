@@ -4,33 +4,17 @@ import { useEffect, useRef, useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   moveCard,
-  setColumns,
   addCard,
   deleteCard,
   updateCardInColumn,
   setOnlineUsers,
+  addColumn,
+  updateColumn,
+  deleteColumn,
 } from '@/store/slices/boardSlice';
-import type { ColumnData, CursorPosition } from '@/utils/ComponentsProps';
+import type { CursorPosition } from '@/utils/ComponentsProps';
 import socket from '@/utils/socket';
-
-function mapApiColumnsToColumnData(apiColumns: any[]): ColumnData[] {
-  return apiColumns.map((col) => ({
-    id: col._id,
-    name: col.title,
-    cards: col.cards.map((card: any) => ({
-      id: card._id,
-      title: card.title,
-      category: card.category ?? '',
-      user: card.assigneeId ?? '',
-      blur: false,
-      color: card.color ?? {
-        textColor: '',
-        bgColor: '',
-        borderColor: '',
-      },
-    })),
-  }));
-}
+import { IColumn } from '@/types/type';
 
 export function useBoardSocket(boardId?: string) {
   const dispatch = useAppDispatch();
@@ -63,7 +47,19 @@ export function useBoardSocket(boardId?: string) {
 
       socket.emit('presence:sync', { boardId });
     }
+    const onColumnAdded = (payload: { column: IColumn }) =>
+      dispatch(addColumn(payload.column));
 
+    const onColumnUpdated = (payload: { column: IColumn }) =>
+      dispatch(
+        updateColumn({
+          columnId: payload.column._id,
+          title: payload.column.title,
+        }),
+      );
+
+    const onColumnDeleted = (payload: { column: IColumn }) =>
+      dispatch(deleteColumn({ columnId: payload.column._id }));
     const onCardMoved = (payload: any) => dispatch(moveCard(payload));
 
     const onCardAdded = (payload: any) => dispatch(addCard(payload));
@@ -72,10 +68,6 @@ export function useBoardSocket(boardId?: string) {
 
     const onCardUpdated = (payload: any) =>
       dispatch(updateCardInColumn(payload));
-
-    const onBoardUpdated = (columns: any[]) =>
-      dispatch(setColumns(mapApiColumnsToColumnData(columns)));
-
     const onPresenceUpdate = (users: any) => dispatch(setOnlineUsers(users));
 
     const onCursorMoved = (payload: CursorPosition) => {
@@ -97,20 +89,24 @@ export function useBoardSocket(boardId?: string) {
     socket.on('card:added', onCardAdded);
     socket.on('card:deleted', onCardDeleted);
     socket.on('card:updated', onCardUpdated);
-    socket.on('board:updated', onBoardUpdated);
     socket.on('presence:update', onPresenceUpdate);
     socket.on('cursor:moved', onCursorMoved);
     socket.on('cursor:left', onCursorLeft);
+    socket.on('column:added', onColumnAdded);
+    socket.on('column:updated', onColumnUpdated);
+    socket.on('column:deleted', onColumnDeleted);
 
     return () => {
       socket.off('card:moved', onCardMoved);
       socket.off('card:added', onCardAdded);
       socket.off('card:deleted', onCardDeleted);
       socket.off('card:updated', onCardUpdated);
-      socket.off('board:updated', onBoardUpdated);
       socket.off('presence:update', onPresenceUpdate);
       socket.off('cursor:moved', onCursorMoved);
       socket.off('cursor:left', onCursorLeft);
+      socket.off('column:added', onColumnAdded);
+      socket.off('column:updated', onColumnUpdated);
+      socket.off('column:deleted', onColumnDeleted);
     };
   }, [boardId, user, dispatch]);
 

@@ -1,11 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { IBoard } from '@/types/type';
-import type { ColumnData, PresenceUser } from '@/utils/ComponentsProps';
+import type { IMember, IColumn, ICard } from '@/types/type';
+import type { PresenceUser } from '@/utils/ComponentsProps';
 
 interface BoardState {
-  board: IBoard | null;
-  boards: IBoard[];
-  columns: ColumnData[];
+  board: IMember | null;
+  columns: IColumn[];
   loading: boolean;
   error: string | null;
   onlineUsers: PresenceUser[];
@@ -13,11 +12,10 @@ interface BoardState {
 
 const initialState: BoardState = {
   board: null,
-  boards: [],
   columns: [],
-  onlineUsers: [],
   loading: false,
   error: null,
+  onlineUsers: [],
 };
 
 const boardSlice = createSlice({
@@ -26,11 +24,8 @@ const boardSlice = createSlice({
   reducers: {
     // ── Board ──────────────────────────────────────────────────────────────────
 
-    setBoard: (state, action: PayloadAction<IBoard>) => {
+    setBoard: (state, action: PayloadAction<IMember>) => {
       state.board = action.payload;
-    },
-    setBoards: (state, action: PayloadAction<IBoard[]>) => {
-      state.boards = action.payload;
     },
     clearBoard: (state) => {
       state.board = null;
@@ -39,24 +34,25 @@ const boardSlice = createSlice({
 
     // ── Columns ────────────────────────────────────────────────────────────────
 
-    setColumns: (state, action: PayloadAction<ColumnData[]>) => {
+    setColumns: (state, action: PayloadAction<IColumn[]>) => {
       state.columns = action.payload;
     },
-    addColumn: (state, action: PayloadAction<ColumnData>) => {
+    addColumn: (state, action: PayloadAction<IColumn>) => {
       state.columns.push(action.payload);
     },
     deleteColumn: (state, action: PayloadAction<{ columnId: string }>) => {
       state.columns = state.columns.filter(
-        (col) => col.id !== action.payload.columnId,
+        (c) => c._id !== action.payload.columnId,
       );
     },
     updateColumn: (
       state,
-      action: PayloadAction<{ columnId: string; name: string }>,
+      action: PayloadAction<{ columnId: string; title: string }>,
     ) => {
-      const col = state.columns.find((c) => c.id === action.payload.columnId);
-      if (col) col.name = action.payload.name;
+      const col = state.columns.find((c) => c._id === action.payload.columnId);
+      if (col) col.title = action.payload.title;
     },
+
     // ── Cards: move ────────────────────────────────────────────────────────────
 
     moveCard: (
@@ -69,11 +65,11 @@ const boardSlice = createSlice({
       }>,
     ) => {
       const { cardId, fromColumnId, toColumnId, toIndex } = action.payload;
-      const fromCol = state.columns.find((c) => c.id === fromColumnId);
-      const toCol = state.columns.find((c) => c.id === toColumnId);
+      const fromCol = state.columns.find((c) => c._id === fromColumnId);
+      const toCol = state.columns.find((c) => c._id === toColumnId);
       if (!fromCol || !toCol) return;
 
-      const cardIndex = fromCol.cards.findIndex((c) => c.id === cardId);
+      const cardIndex = fromCol.cards.findIndex((c) => c._id === cardId);
       if (cardIndex === -1) return;
 
       const [card] = fromCol.cards.splice(cardIndex, 1);
@@ -84,10 +80,15 @@ const boardSlice = createSlice({
 
     addCard: (
       state,
-      action: PayloadAction<{ columnId: string; card: ColumnData['cards'][0] }>,
+      action: PayloadAction<{ columnId: string; card: ICard }>,
     ) => {
-      const col = state.columns.find((c) => c.id === action.payload.columnId);
-      if (col) col.cards.push(action.payload.card);
+      const col = state.columns.find((c) => c._id === action.payload.columnId);
+      if (!col) return;
+      const alreadyExists = col.cards.some(
+        (c) => c._id === action.payload.card._id,
+      );
+      if (alreadyExists) return;
+      col.cards.push(action.payload.card);
     },
 
     // ── Cards: delete ──────────────────────────────────────────────────────────
@@ -96,9 +97,9 @@ const boardSlice = createSlice({
       state,
       action: PayloadAction<{ columnId: string; cardId: string }>,
     ) => {
-      const col = state.columns.find((c) => c.id === action.payload.columnId);
+      const col = state.columns.find((c) => c._id === action.payload.columnId);
       if (col)
-        col.cards = col.cards.filter((c) => c.id !== action.payload.cardId);
+        col.cards = col.cards.filter((c) => c._id !== action.payload.cardId);
     },
 
     // ── Cards: update ──────────────────────────────────────────────────────────
@@ -108,17 +109,14 @@ const boardSlice = createSlice({
       action: PayloadAction<{
         columnId: string;
         cardId: string;
-        card: Partial<ColumnData['cards'][0]>;
+        card: Partial<ICard>;
       }>,
     ) => {
       const { columnId, cardId, card } = action.payload;
-      const col = state.columns.find((c) => c.id === columnId);
+      const col = state.columns.find((c) => c._id === columnId);
       if (!col) return;
-
-      const index = col.cards.findIndex((c) => c.id === cardId);
+      const index = col.cards.findIndex((c) => c._id === cardId);
       if (index === -1) return;
-
-      // Merge only the fields that changed — keep the rest intact
       col.cards[index] = { ...col.cards[index], ...card };
     },
 
@@ -141,11 +139,10 @@ const boardSlice = createSlice({
 
 export const {
   setBoard,
-  setBoards,
   clearBoard,
   setColumns,
-  deleteColumn,
   addColumn,
+  deleteColumn,
   updateColumn,
   moveCard,
   addCard,

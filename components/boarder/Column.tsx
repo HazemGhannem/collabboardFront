@@ -7,38 +7,45 @@ import Card from './Card';
 import Input from '../ui/Input';
 import { Check, Plus, Trash2, X } from 'lucide-react';
 import { ColumnProps } from '@/utils/ComponentsProps';
-import { useBoardActions } from '@/hooks/useBoardActions';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useState } from 'react';
 import Button from '../ui/Button';
+import { useBoardSocketActions } from '@/hooks/useBoardSocketActions';
 
-const Column = ({ id, name, cards, boardId }: ColumnProps) => {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  const { updateColumnTitle, deleteColumFromBoarder, loading } =
-    useBoardActions();
+const Column = ({ _id, title, cards, boardId }: ColumnProps) => {
+  const { setNodeRef, isOver } = useDroppable({ id: _id });
+
   const { canEditColumns, canDeleteColumns } = usePermissions();
-
+  const { emitAddCard, emitUpdateColumn, emitDeleteColumn } =
+    useBoardSocketActions(boardId);
   const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(name);
-
+  const [columnTitle, setColumnTitle] = useState(title);
+  const [cardTitle, setCardTitle] = useState('');
   const handleSave = async () => {
-    const value = title.trim();
-    if (!value || value === name) {
-      setTitle(name);
+    const value = columnTitle.trim();
+    if (!value || value === title) {
+      setColumnTitle(title);
       setEditing(false);
       return;
     }
-    await updateColumnTitle(boardId, id, value);
+    await emitUpdateColumn(_id, value);
     setEditing(false);
   };
 
+  const handleAddCard = async () => {
+    const value = cardTitle.trim();
+    if (!value) return;
+    await emitAddCard(_id, value);
+    setCardTitle('');
+  };
+
   const handleCancel = () => {
-    setTitle(name);
+    setColumnTitle(title);
     setEditing(false);
   };
 
   const handleDelete = async () => {
-    await deleteColumFromBoarder(boardId, id);
+    await emitDeleteColumn(_id);
   };
 
   return (
@@ -52,8 +59,8 @@ const Column = ({ id, name, cards, boardId }: ColumnProps) => {
           <div className="flex flex-1 items-center gap-1">
             <Input
               autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={columnTitle}
+              onChange={(e) => setColumnTitle(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSave();
                 if (e.key === 'Escape') handleCancel();
@@ -76,7 +83,7 @@ const Column = ({ id, name, cards, boardId }: ColumnProps) => {
             }`}
             title={canEditColumns ? 'Click to rename' : undefined}
           >
-            {name}
+            {title}
           </h2>
         )}
 
@@ -89,7 +96,6 @@ const Column = ({ id, name, cards, boardId }: ColumnProps) => {
             {canDeleteColumns && (
               <Button
                 icon={<Trash2 size={12} />}
-                loading={loading}
                 onClick={handleDelete}
                 className="flex items-center justify-center rounded-full h-[18px] w-[18px] shrink-0 transition-colors cursor-pointer text-zinc-500 hover:text-red-400"
               />
@@ -99,22 +105,32 @@ const Column = ({ id, name, cards, boardId }: ColumnProps) => {
       </div>
 
       <SortableContext
-        id={id}
-        items={cards.map((c) => c.id)}
+        id={_id}
+        items={cards.map((c) => c._id)}
         strategy={verticalListSortingStrategy}
       >
         <div ref={setNodeRef} className="flex flex-col gap-3 min-h-[40px]">
           {cards.map((card) => (
             <Card
-              key={card.id}
+              key={card._id}
               {...card}
-              blur={name === 'Done'}
-              columName={name}
-              columId={id}
+              blur={title === 'Done'}
+              columName={columnTitle}
+              columId={_id}
             />
           ))}
           {canEditColumns && (
-            <Input placeholder={name} Icon={Plus} iconSize={24} />
+            <Input
+              placeholder={title}
+              Icon={Plus}
+              iconSize={24}
+              ButtonClick={handleAddCard}
+              value={cardTitle}
+              onChange={(e) => setCardTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddCard();
+              }}
+            />
           )}
         </div>
       </SortableContext>

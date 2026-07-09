@@ -11,7 +11,7 @@ const ROLE_RANK = {
 type Role = keyof typeof ROLE_RANK;
 
 export function usePermissions() {
-  const role = useAppSelector((s) => s.board.board?.data.role);
+  const role = useAppSelector((s) => s.board.board?.role);
   const hasAtLeast = (required: Role): boolean =>
     role != null && ROLE_RANK[role] >= ROLE_RANK[required];
 

@@ -3,6 +3,7 @@
 import { useRef } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import socket from '@/utils/socket';
+import { ICard, IColumn } from '@/types/type';
 
 export function useBoardSocketActions(boardId?: string) {
   const user = useAppSelector((s) => s.auth.user);
@@ -20,22 +21,28 @@ export function useBoardSocketActions(boardId?: string) {
   const emitAddCard = (
     columnId: string,
     title: string,
-    options?: { color?: any; description?: string },
-  ) => {
-    socket.emit('card:add', {
-      boardId,
-      columnId,
-      title,
-      ...options,
+    options?: { description: string; category: string },
+  ): Promise<ICard | null> => {
+    return new Promise((resolve) => {
+      socket.emit(
+        'card:add',
+        { boardId, columnId, title, assigneeId: user?._id, ...options },
+        (err: string | null, card?: ICard) => {
+          if (err) {
+            console.error('card:add failed:', err);
+            resolve(null);
+            return;
+          }
+          // State update now comes solely from the 'card:added' broadcast
+          // in useBoardSocket.ts — no local dispatch here.
+          resolve(card ?? null);
+        },
+      );
     });
   };
 
   const emitDeleteCard = (columnId: string, cardId: string) => {
-    socket.emit('card:delete', {
-      boardId,
-      columnId,
-      cardId,
-    });
+    socket.emit('card:delete', { boardId, columnId, cardId });
   };
 
   const emitUpdateCard = (
@@ -43,28 +50,14 @@ export function useBoardSocketActions(boardId?: string) {
     cardId: string,
     data: Record<string, any>,
   ) => {
-    socket.emit('card:update', {
-      boardId,
-      columnId,
-      cardId,
-      data,
-    });
-  };
-
-  const emitAddColumn = (title: string) => {
-    socket.emit('column:add', {
-      boardId,
-      title,
-    });
+    socket.emit('card:update', { boardId, columnId, cardId, data });
   };
 
   const emitCursorMove = (x: number, y: number) => {
     if (!boardId || !user) return;
 
     const now = Date.now();
-
     if (now - lastEmitRef.current < 40) return;
-
     lastEmitRef.current = now;
 
     socket.emit('cursor:move', {
@@ -76,11 +69,58 @@ export function useBoardSocketActions(boardId?: string) {
       y,
     });
   };
-const emitLeaveBoard = () => {
-  if (!boardId) return;
 
-  socket.emit('board:leave', boardId);
-};
+  const emitLeaveBoard = () => {
+    if (!boardId) return;
+    socket.emit('board:leave', boardId);
+  };
+
+  const emitUpdateColumn = (
+    columnId: string,
+    title: string,
+    ack?: (err: string | null) => void,
+  ) => {
+    if (!boardId) return;
+    socket.emit(
+      'column:update',
+      { boardId, columnId, title },
+      (err: string | null) => {
+        if (err) console.error('column:update failed:', err);
+        ack?.(err);
+      },
+    );
+  };
+
+  const emitAddColumn = (
+    title: string,
+    ack?: (err: string | null, column?: IColumn) => void,
+  ) => {
+    if (!boardId) return;
+    socket.emit(
+      'column:add',
+      { boardId, title },
+      (err: string | null, column?: IColumn) => {
+        if (err) console.error('column:add failed:', err);
+        ack?.(err, column);
+      },
+    );
+  };
+
+  const emitDeleteColumn = (
+    columnId: string,
+    ack?: (err: string | null) => void,
+  ) => {
+    if (!boardId) return;
+    socket.emit(
+      'column:delete',
+      { boardId, columnId },
+      (err: string | null) => {
+        if (err) console.error('column:delete failed:', err);
+        ack?.(err);
+      },
+    );
+  };
+
   return {
     emitMoveCard,
     emitAddCard,
@@ -89,5 +129,7 @@ const emitLeaveBoard = () => {
     emitAddColumn,
     emitCursorMove,
     emitLeaveBoard,
+    emitUpdateColumn,
+    emitDeleteColumn,
   };
 }

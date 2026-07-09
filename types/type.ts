@@ -1,3 +1,5 @@
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
 export interface IUserPublic {
   _id: string;
   firstName: string;
@@ -5,6 +7,7 @@ export interface IUserPublic {
   email: string;
   image?: string;
 }
+
 export interface LoginData {
   email: string;
   password: string;
@@ -18,15 +21,16 @@ export interface SignupData {
   image?: string;
 }
 
+// ─── Board ────────────────────────────────────────────────────────────────────
 
+export type Role = 'owner' | 'editor' | 'viewer';
 
 export interface ICard {
-  id: string;
+  _id: string;
   title: string;
   description?: string;
   category?: string;
-  color?: string;
-  assigneeId?: string;
+  assigneeId?: IUserPublic | null; // populated on fetch, null if unassigned
   order: number;
   createdAt: string;
 }
@@ -34,37 +38,36 @@ export interface ICard {
 export interface IColumn {
   _id: string;
   title: string;
-  order: number;
+  order?: number;
   cards: ICard[];
 }
-export type Role = 'owner' | 'editor' | 'viewer';
 
-export interface IBoard {
-  success: Boolean;
+export interface IBoardData {
+  _id: string;
+  name: string;
+  createdBy: IUserPublic;
+  columns: IColumn[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Board Member ─────────────────────────────────────────────────────────────
+
+export interface IMember {
+  _id: string;
+  board: IBoardData;
+  user: IUserPublic;
+  role: Role;
+  code: string | null;
+  joinedAt: string;
+}
+
+// ─── API Responses ────────────────────────────────────────────────────────────
+
+export interface IBoardResponse {
+  success: boolean;
   data: {
-    _id: string;
-    success: Boolean;
-    board: {
-      _id: string;
-      name: string;
-      createdBy: {
-        _id: string;
-        firstName: string;
-        lastName: string;
-        email: string;
-        image?: string;
-      };
-      columns: IColumn[];
-      createdAt: string;
-      updatedAt: string;
-    };
-    joinedAt: string;
-    role: Role;
-    user: {
-      _id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-    };
+    board: IBoardData; // board.columns.cards.assigneeId is populated
+    member: IMember; // contains role + user info
   };
 }
