@@ -1,5 +1,11 @@
 interface ErrorFetchingProps {
-  error: string | null;
+  error: {
+    status: number;
+    data: {
+      error: string;
+      success: boolean;
+    };
+  };
   onRetry: () => void;
   title?: string;
 }
@@ -10,7 +16,7 @@ export default function ErrorFetching({
   title = 'Failed to Load Board',
 }: ErrorFetchingProps) {
   if (!error) return null;
-
+  if (error.status === 403) console.log('error 403');
   return (
     <div className="flex min-h-[50vh] w-full items-center justify-center p-6 animate-fade-in">
       <div className="w-full max-w-md rounded-xl border border-red-200 bg-red-50 p-6 text-center shadow-sm">
@@ -32,7 +38,7 @@ export default function ErrorFetching({
         </div>
 
         <h3 className="mb-1 text-lg font-semibold text-red-900">{title}</h3>
-        <p className="mb-5 text-sm text-red-700">{error}</p>
+        <p className="mb-5 text-sm text-red-700">{error.data.error}</p>
 
         {/* Retry Control Trigger */}
         <button

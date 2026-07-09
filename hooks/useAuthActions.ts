@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { LoginData, SignupData } from '@/types/type';
 import { api } from '@/utils/api';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { useAppDispatch } from '@/store/hooks';
 import { setCredentials } from '@/store/slices/authSlice';
 import { logout as disconnect } from '@/store/slices/authSlice';
 import { useBoardSocketActions } from './useBoardSocketActions';

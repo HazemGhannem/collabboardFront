@@ -1,9 +1,10 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { IMember, IColumn, ICard } from '@/types/type';
+import type { IMember, IColumn, ICard, IBoardData } from '@/types/type';
 import type { PresenceUser } from '@/utils/ComponentsProps';
 
 interface BoardState {
-  board: IMember | null;
+  memberData: IMember | null;
+  board: IBoardData | null;
   columns: IColumn[];
   loading: boolean;
   error: string | null;
@@ -11,6 +12,7 @@ interface BoardState {
 }
 
 const initialState: BoardState = {
+  memberData: null,
   board: null,
   columns: [],
   loading: false,
@@ -24,8 +26,11 @@ const boardSlice = createSlice({
   reducers: {
     // ── Board ──────────────────────────────────────────────────────────────────
 
-    setBoard: (state, action: PayloadAction<IMember>) => {
+    setBoard: (state, action: PayloadAction<IBoardData>) => {
       state.board = action.payload;
+    },
+    setMemberData: (state, action: PayloadAction<IMember>) => {
+      state.memberData = action.payload;
     },
     clearBoard: (state) => {
       state.board = null;
@@ -139,6 +144,7 @@ const boardSlice = createSlice({
 
 export const {
   setBoard,
+  setMemberData,
   clearBoard,
   setColumns,
   addColumn,

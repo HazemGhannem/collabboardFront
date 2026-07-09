@@ -15,14 +15,13 @@ interface NavbarProps {
   href?: string;
 }
 
-export default function NavBar({ status = 'Public', href = '/' }: NavbarProps) {
+export default function NavBar({ href = '/' }: NavbarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { id } = useParams<{ id: string }>();
   const { logout } = useAuthActions();
   const { board } = useBoardActions();
-  const { isEditor } = usePermissions();
-
+  const { isEditor, isOwner } = usePermissions();
   const { user } = useAppSelector((s) => s.auth);
   const onlineUsers = useAppSelector((s) => s.board.onlineUsers);
   const isBoardPage = pathname.startsWith('/board/');
@@ -46,7 +45,7 @@ export default function NavBar({ status = 'Public', href = '/' }: NavbarProps) {
               </h1>
             </div>
             <span className="hidden rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-300 sm:block">
-              {status}
+              {capitalize(board.visibility)}
             </span>
           </>
         )}
@@ -72,7 +71,7 @@ export default function NavBar({ status = 'Public', href = '/' }: NavbarProps) {
               ))}
           </div>
           {/* Invite button — only on board pages */}
-          {isBoardPage && isEditor && <InviteDropdown boardId={id} />}
+          {isBoardPage && isOwner && <InviteDropdown boardId={id} />}
 
           <Button
             className="rounded-md bg-blue-600 px-3 py-2 text-white transition-colors hover:bg-blue-700 sm:px-4"

@@ -2,19 +2,17 @@
 
 import { useState } from 'react';
 import { api } from '@/utils/api';
-import type { IBoardResponse, IColumn } from '@/types/type';
+import type { IBoardResponse } from '@/types/type';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   setBoard as setBoardAction,
-  addColumn,
-  deleteColumn,
-  updateColumn,
   setColumns,
+  setMemberData,
 } from '@/store/slices/boardSlice';
 
 export function useBoardActions() {
   const dispatch = useAppDispatch();
-  const board = useAppSelector((s) => s.board.board?.board);
+  const board = useAppSelector((s) => s.board.board);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,11 +25,13 @@ export function useBoardActions() {
     try {
       const { data } = await api.get<IBoardResponse>(`/boards/${boardId}`);
       // console.log(data.data.board.columns, '=====');
-      dispatch(setBoardAction(data.data.member));
+      dispatch(setBoardAction(data.data.board));
+      dispatch(setMemberData(data.data.member));
       dispatch(setColumns(data.data.board.columns));
       return data;
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
+      console.log(err.response);
+      setError(err.response ?? 'Something went wrong. Try again.');
       return null;
     } finally {
       setLoading(false);

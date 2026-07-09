@@ -24,6 +24,7 @@ export interface SignupData {
 // ─── Board ────────────────────────────────────────────────────────────────────
 
 export type Role = 'owner' | 'editor' | 'viewer';
+export type visibilityRole = 'public' | 'private';
 
 export interface ICard {
   _id: string;
@@ -46,6 +47,7 @@ export interface IBoardData {
   _id: string;
   name: string;
   createdBy: IUserPublic;
+  visibility: visibilityRole;
   columns: IColumn[];
   createdAt: string;
   updatedAt: string;
@@ -55,7 +57,7 @@ export interface IBoardData {
 
 export interface IMember {
   _id: string;
-  board: IBoardData;
+  board: string;
   user: IUserPublic;
   role: Role;
   code: string | null;

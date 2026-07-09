@@ -31,7 +31,7 @@ const Card = ({
   } = useSortable({ id: _id, disabled: !isEditor });
   const dispatch = useAppDispatch();
   // board.board is the IBoardData itself (already unwrapped) — not board.board.board
-  const boardId = useAppSelector((s) => s.board.board?.board._id);
+  const boardId = useAppSelector((s) => s.board.board?._id);
   const onlineUsers = useAppSelector((s) => s.board.onlineUsers);
   const { emitDeleteCard } = useBoardSocketActions(boardId);
 
