@@ -1,25 +1,56 @@
+// utils/api.ts
 import axios from 'axios';
+import { store } from '@/store';
+import { logout } from '@/store/slices/authSlice';
+import socket from '@/utils/socket';
+
+class SilentError extends Error {
+  silent = true;
+  constructor(message = 'Silent — handled via redirect') {
+    super(message);
+    this.name = 'SilentError';
+  }
+}
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_SERVER_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' },
 });
 
-// Interceptor to dynamically add the JWT to every request
-api.interceptors.request.use(
-  (config) => {
-    // Ensure this runs only in the browser to prevent Next.js SSR errors
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token'); // Change key if needed
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
+function hardLogout() {
+  store.dispatch(logout()); // clear Redux auth + board state
+  if (socket.connected) socket.disconnect(); // don't leave a stale authenticated socket dangling
+  if (window.location.pathname !== '/login') {
+    window.location.replace('/login');
+  }
+}
+
+api.interceptors.response.use(
+  (res) => res,
   (error) => {
+    const status = error.response?.status;
+    const isPageLoad = error.config?.meta?.pageLoad === true;
+
+    console.error('API Error:', {
+      status,
+      url: error.config?.url,
+      method: error.config?.method,
+    });
+
+    if (status === 401 && typeof window !== 'undefined') {
+      hardLogout();
+      return Promise.reject(new SilentError('Session expired'));
+    }
+
+    if (status === 403 && isPageLoad && typeof window !== 'undefined') {
+      // Not a member of this resource at all — silently bounce away
+      window.location.replace('/');
+      return Promise.reject(new SilentError('Not authorized for this page'));
+    }
+
+    // Action-level 403s (and everything else) flow through as real errors —
+    // the caller decides how to surface them (toast, inline message, etc.)
     return Promise.reject(error);
   },
 );

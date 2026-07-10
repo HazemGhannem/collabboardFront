@@ -13,6 +13,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@reduxjs/toolkit": "^2.12.0",
+    "@tanstack/react-query": "^5.101.2",
     "axios": "^1.18.1",
     "idb-keyval": "^6.2.6",
     "lucide-react": "^1.21.0",

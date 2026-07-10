@@ -39,7 +39,13 @@
 * {
   box-sizing: border-box;
 }
-
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
 body {
   background: var(--color-bg);
   color: var(--color-text-primary);

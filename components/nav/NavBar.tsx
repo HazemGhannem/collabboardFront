@@ -30,7 +30,6 @@ export default function NavBar({ href = '/' }: NavbarProps) {
   const handleNavigation = () => {
     router.push('/login');
   };
-
   return (
     <nav className="mx-4 mt-4 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#e6f4f5] bg-zinc-800 p-4 shadow-sm">
       <a href={href} className="flex min-w-0 items-center gap-3">

@@ -14,14 +14,16 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setColumns } from '@/store/slices/boardSlice';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 
 const Page = () => {
   const { isEditor } = usePermissions();
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
 
-  const { getBoardById, loading, error } = useBoardActions();
+  // ← passes id, React Query fetches automatically — no useEffect needed
+  const { refetch, loading, error } = useBoardActions(id);
+
   const columns = useAppSelector((s) => s.board.columns);
   const currentUserId = useAppSelector((s) => s.auth.user?._id);
   const { cursors } = useBoardSocket(id);
@@ -37,7 +39,6 @@ const Page = () => {
 
   const boardRef = useRef<HTMLDivElement>(null);
 
-  // Viewers don't need to broadcast a cursor — skip the work entirely
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
       if (!isEditor) return;
@@ -48,13 +49,6 @@ const Page = () => {
     [isEditor, emitCursorMove],
   );
 
-  // ── Fetch board on mount ────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!id) return;
-    getBoardById(id);
-  }, [id]);
-
   if (loading)
     return (
       <div className="flex min-h-[50vh] w-full items-center justify-center p-6">
@@ -62,10 +56,7 @@ const Page = () => {
       </div>
     );
 
-  if (error)
-    return (
-      <ErrorFetching error={error} onRetry={() => id && getBoardById(id)} />
-    );
+  if (error) return <ErrorFetching error={error} onRetry={() => refetch()} />;
 
   return (
     <DndContext
@@ -91,7 +82,6 @@ const Page = () => {
             </div>
           )}
         </div>
-
         <CursorOverlay cursors={cursors} currentUserId={currentUserId} />
       </div>
 
@@ -105,4 +95,5 @@ const Page = () => {
     </DndContext>
   );
 };
+
 export default Page;

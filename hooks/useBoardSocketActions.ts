@@ -120,6 +120,9 @@ export function useBoardSocketActions(boardId?: string) {
       },
     );
   };
+  const emitDisconnectSocket = () => {
+    if (socket.connected) socket.disconnect();
+  };
 
   return {
     emitMoveCard,
@@ -131,5 +134,6 @@ export function useBoardSocketActions(boardId?: string) {
     emitLeaveBoard,
     emitUpdateColumn,
     emitDeleteColumn,
+    emitDisconnectSocket,
   };
 }

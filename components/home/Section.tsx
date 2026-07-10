@@ -12,25 +12,24 @@ export default function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      {/* Section header */}
+    <section className="flex w-full flex-col gap-4">
       <div className="flex items-center gap-2">
         <span className="text-[var(--text-muted)]">{icon}</span>
+
         <h2 className="text-sm font-medium text-[var(--text-primary)]">
           {title}
         </h2>
-        <span className="text-xs text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] rounded-full px-2 py-0.5">
+
+        <span className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-xs text-[var(--text-muted)]">
           {count}
         </span>
       </div>
 
       {count === 0 ? (
-        <p className="text-sm text-[var(--text-muted)] pl-1">{empty}</p>
+        <p className="pl-1 text-sm text-[var(--text-muted)]">{empty}</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {children}
-        </div>
+        <div className="w-full">{children}</div>
       )}
-    </div>
+    </section>
   );
 }

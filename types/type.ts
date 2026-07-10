@@ -60,7 +60,6 @@ export interface IMember {
   board: string;
   user: IUserPublic;
   role: Role;
-  code: string | null;
   joinedAt: string;
 }
 
@@ -72,4 +71,32 @@ export interface IBoardResponse {
     board: IBoardData; // board.columns.cards.assigneeId is populated
     member: IMember; // contains role + user info
   };
+}
+// ─── API Error Responses ────────────────────────────────────────────────────────────
+
+export interface ApiResponseError {
+  status: number;
+  data: {
+    error: string;
+    success: boolean;
+  };
+}
+
+ 
+
+// Frontend shape of a board-membership record, as returned by
+// GET /boards (list endpoint) — `board` is populated, not a raw ObjectId.
+export interface IBoardMember {
+  _id: string;
+  board: IBoardData;
+  user: string; // raw ObjectId string — not populated in this query
+  role: Role;
+  code?: string | null;
+  joinedAt: string;
+}
+export interface IBoardsPagination {
+  total: number;
+  page: number;
+  pageSize: number;  
+  totalPages: number;
 }

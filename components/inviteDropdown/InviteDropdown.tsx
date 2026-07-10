@@ -135,7 +135,7 @@ export default function InviteDropdown({ boardId }: InviteDropdownProps) {
             </div>
           )}
 
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-3 text-sm text-red-400">{error.data.error}</p>}
         </div>
       )}
     </div>

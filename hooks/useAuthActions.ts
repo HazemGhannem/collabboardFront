@@ -2,27 +2,31 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { LoginData, SignupData } from '@/types/type';
+import type { ApiResponseError, LoginData, SignupData } from '@/types/type';
 import { api } from '@/utils/api';
 import { useAppDispatch } from '@/store/hooks';
-import { setCredentials } from '@/store/slices/authSlice';
-import { logout as disconnect } from '@/store/slices/authSlice';
+import {
+  setCredentials,
+  logout as logoutAction,
+} from '@/store/slices/authSlice';
 import { useBoardSocketActions } from './useBoardSocketActions';
+
 export function useAuthActions() {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const { emitDisconnectSocket } = useBoardSocketActions();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { emitLeaveBoard } = useBoardSocketActions();
+  const [error, setError] = useState<ApiResponseError | null>(null);
+
   const signup = async (data: SignupData) => {
     setLoading(true);
     setError(null);
     try {
       const { data: response } = await api.post('/auth/signup', data);
-      dispatch(setCredentials({ user: response.user, token: response.token }));
+      dispatch(setCredentials({ user: response.user }));
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
+      setError(err.response ?? 'Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }
@@ -33,19 +37,33 @@ export function useAuthActions() {
     setError(null);
     try {
       const { data: response } = await api.post('/auth/login', data);
-      dispatch(setCredentials({ user: response.user, token: response.token }));
+      dispatch(setCredentials({ user: response.user }));
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Invalid email or password.');
+      setError(err.response ?? 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
   };
+
   const logout = async () => {
-    dispatch(disconnect());
-    emitLeaveBoard();
+    try {
+      await api.post('/auth/logout'); // clears the httpOnly cookie server-side
+    } catch {
+      // best-effort — proceed with client-side cleanup regardless
+    }
+    emitDisconnectSocket(); // kill the live socket, was authenticated as this user
+    dispatch(logoutAction());
     router.push('/login');
   };
+  const getMe = async () => {
+    try {
+      const { data } = await api.get('/auth/me');
+      dispatch(setCredentials({ user: data.user }));
+    } catch {
+      dispatch(logoutAction()); // cookie invalid/expired
+    }
+  };
 
-  return { login, signup, loading, error, setError, logout };
+  return { login, signup, loading, error, setError, logout, getMe };
 }

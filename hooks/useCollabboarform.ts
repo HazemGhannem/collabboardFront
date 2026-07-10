@@ -4,6 +4,7 @@ import { api } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useMemberActions } from './useMemberActions';
+import { ApiResponseError } from '@/types/type';
 
 export function useCollabBoardForm() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export function useCollabBoardForm() {
   const [boardName, setBoardName] = useState('');
   const [joinValue, setJoinValue] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiResponseError | null>(null);
 
   const canCreate = boardName.trim().length > 0;
   const canJoin = joinValue.trim().length > 0;
@@ -27,7 +28,7 @@ export function useCollabBoardForm() {
       });
       if (response.success) return router.push(`/board/${response.data._id}`);
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Something went wrong. Try again.');
+      setError(err.response ?? 'Something went wrong. Try again.');
     } finally {
       setLoading(false);
     }

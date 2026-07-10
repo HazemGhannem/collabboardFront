@@ -1,5 +1,12 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { IMember, IColumn, ICard, IBoardData } from '@/types/type';
+import type {
+  IMember,
+  IColumn,
+  ICard,
+  IBoardData,
+  IBoardMember,
+  IBoardsPagination,
+} from '@/types/type';
 import type { PresenceUser } from '@/utils/ComponentsProps';
 
 interface BoardState {
@@ -29,6 +36,7 @@ const boardSlice = createSlice({
     setBoard: (state, action: PayloadAction<IBoardData>) => {
       state.board = action.payload;
     },
+
     setMemberData: (state, action: PayloadAction<IMember>) => {
       state.memberData = action.payload;
     },
