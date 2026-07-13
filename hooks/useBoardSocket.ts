@@ -36,15 +36,18 @@ export function useBoardSocket(boardId?: string) {
 
       joinedBoard.current = boardId;
 
-      socket.emit('board:join', {
-        boardId,
-        user: {
-          userId: user._id,
-          firstName: user.firstName,
-          lastName: user.lastName,
+      socket.emit(
+        'board:join',
+        {
+          boardId,
         },
-      });
-
+        (err: string | null) => {
+          if (err) {
+            console.error('Failed to join board:', err);
+            // e.g. dispatch a toast, or redirect away from the board
+          }
+        },
+      );
       socket.emit('presence:sync', { boardId });
     }
     const onColumnAdded = (payload: { column: IColumn }) =>

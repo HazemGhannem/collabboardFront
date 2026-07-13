@@ -3,6 +3,7 @@ import axios from 'axios';
 import { store } from '@/store';
 import { logout } from '@/store/slices/authSlice';
 import socket from '@/utils/socket';
+import { toast } from 'sonner';
 
 class SilentError extends Error {
   silent = true;
@@ -30,8 +31,13 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     const status = error.response?.status;
+    const isNetworkError = !error.response;
     const isPageLoad = error.config?.meta?.pageLoad === true;
-
+    const backendMessage = error.response?.data?.error;
+    const message = isNetworkError
+      ? 'Network error — check your connection.'
+      : (backendMessage ?? 'Something went wrong. Try again.');
+    error.userMessage = message;
     console.error('API Error:', {
       status,
       url: error.config?.url,
@@ -48,7 +54,10 @@ api.interceptors.response.use(
       window.location.replace('/');
       return Promise.reject(new SilentError('Not authorized for this page'));
     }
-
+    if (!error.config?.meta?.silent) {
+      const toastId = isNetworkError ? 'network-error' : error.config?.url;
+      toast.error(message, { id: toastId });
+    }
     // Action-level 403s (and everything else) flow through as real errors —
     // the caller decides how to surface them (toast, inline message, etc.)
     return Promise.reject(error);

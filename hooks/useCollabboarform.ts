@@ -3,43 +3,48 @@
 import { api } from '@/utils/api';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useMemberActions } from './useMemberActions';
-import { ApiResponseError } from '@/types/type';
+
+async function createBoardRequest(name: string) {
+  const { data } = await api.post('/boards', { name });
+  return data;
+}
 
 export function useCollabBoardForm() {
   const router = useRouter();
-  const { joinMember, error: memberError } = useMemberActions();
+  const { joinMember, createInviteError,joining } = useMemberActions();
   const [boardName, setBoardName] = useState('');
   const [joinValue, setJoinValue] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ApiResponseError | null>(null);
 
   const canCreate = boardName.trim().length > 0;
   const canJoin = joinValue.trim().length > 0;
 
-  const handleCreate = async () => {
-    if (!canCreate) return;
-    setLoading(true);
-    setError(null);
+  const createMutation = useMutation({
+    mutationFn: () => createBoardRequest(boardName),
+    onSuccess: (response) => {
+      if (response.success) router.push(`/board/${response.data._id}`);
+    },
+  });
 
-    try {
-      const { data: response } = await api.post('/boards', {
-        name: boardName,
-      });
-      if (response.success) return router.push(`/board/${response.data._id}`);
-    } catch (err: any) {
-      setError(err.response ?? 'Something went wrong. Try again.');
-    } finally {
-      setLoading(false);
-    }
+  const handleCreate = () => {
+    if (!canCreate) return;
+    createMutation.mutate();
   };
 
   const handleJoin = async () => {
     if (!canJoin) return;
-    const { boardId } = await joinMember(joinValue);
-    router.push(`/board/${boardId}`);
-    setJoinValue('');
+    const response = await joinMember(joinValue);
+    if (response?.success) {
+      router.push(`/board/${response.data.boardId}`); // now works correctly
+      setJoinValue('');
+    }
   };
+
+  const error = createMutation.error
+    ? ((createMutation.error as any).response ??
+      'Something went wrong. Try again.')
+    : null;
 
   return {
     boardName,
@@ -49,9 +54,10 @@ export function useCollabBoardForm() {
     canCreate,
     canJoin,
     error,
-    loading,
+    loading: createMutation.isPending,
     handleCreate,
     handleJoin,
-    memberError,
+    createInviteError,
+    joining,
   };
 }

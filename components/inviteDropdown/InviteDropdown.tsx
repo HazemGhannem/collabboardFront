@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Copy, Check, UserPlus } from 'lucide-react';
 import Button from '../ui/Button';
 import { useMemberActions } from '@/hooks/useMemberActions';
@@ -13,65 +13,88 @@ export default function InviteDropdown({ boardId }: InviteDropdownProps) {
   const [open, setOpen] = useState(false);
   const [role, setRole] = useState<'viewer' | 'editor'>('viewer');
   const [inviteCode, setInviteCode] = useState('');
-  const [inviteLink, setinviteLink] = useState('');
-  const [copied, setCopied] = useState(false);
-  const { createInvite, error, loading } = useMemberActions();
-  const generateCode = async () => {
-    const { code, inviteLink } = await createInvite(boardId, role);
+  const [inviteLink, setInviteLink] = useState('');
+  const [copiedField, setCopiedField] = useState<'code' | 'link' | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-    if (code && inviteLink) {
-      setInviteCode(code);
-      setinviteLink(inviteLink);
-      setCopied(false);
+  const {
+    createInvite,
+    createInviteError: error,
+    creatingInvite: loading,
+  } = useMemberActions();
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [open]);
+
+  const generateCode = async () => {
+    try {
+      const response = await createInvite({ boardId, body: { role } });
+      if (response.success) {
+        setInviteCode(response.code);
+        setInviteLink(response.inviteLink);
+        setCopiedField(null);
+      }
+    } catch {
+      // error already captured via createInviteError
     }
   };
 
-  const copy = async () => {
-    if (!inviteCode) return;
-
+  const copyToClipboard = async (value: string, field: 'code' | 'link') => {
+    if (!value) return;
     try {
-      await navigator.clipboard.writeText(inviteCode);
-      setCopied(true);
-
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(value);
+      setCopiedField(field);
+      setTimeout(() => setCopiedField(null), 2000);
     } catch {
-      console.error('Unable to copy invite code.');
+      console.error('Unable to copy to clipboard.');
     }
   };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex h-9 items-center cursor-pointer gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-3 text-sm text-zinc-300 transition hover:bg-zinc-700 hover:text-white"
       >
         <UserPlus size={15} />
-        <span className="hidden sm:block ">Invite</span>
+        <span className="hidden sm:block">Invite</span>
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-xl">
+        <div
+          className="fixed inset-x-4 top-20 z-50 rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-xl
+                     sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:mt-2 sm:w-80"
+        >
           <h3 className="mb-4 text-sm font-semibold text-white">
             Invite Member
           </h3>
 
           <label className="mb-1 block text-xs text-zinc-400">Permission</label>
-
           <select
             value={role}
             onChange={(e) => {
               setRole(e.target.value as 'viewer' | 'editor');
               setInviteCode('');
-              setinviteLink('');
+              setInviteLink('');
             }}
             className="mb-4 w-full rounded-lg border cursor-pointer border-zinc-700 bg-zinc-800 px-3 py-2 text-white"
           >
-            <option value="viewer" className="cursor-pointer">
-              Viewer
-            </option>
-            <option value="editor" className="cursor-pointer">
-              Editor
-            </option>
+            <option value="viewer">Viewer</option>
+            <option value="editor">Editor</option>
           </select>
 
           <Button
@@ -87,19 +110,17 @@ export default function InviteDropdown({ boardId }: InviteDropdownProps) {
               <label className="mb-1 block text-xs text-zinc-400">
                 Invite Code
               </label>
-
               <div className="flex gap-2">
                 <input
                   readOnly
                   value={inviteCode}
-                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white"
+                  className="w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white"
                 />
-
                 <Button
-                  onClick={copy}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-700 hover:bg-zinc-800"
+                  onClick={() => copyToClipboard(inviteCode, 'code')}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-700 hover:bg-zinc-800"
                 >
-                  {copied ? (
+                  {copiedField === 'code' ? (
                     <Check size={18} className="text-green-400" />
                   ) : (
                     <Copy size={18} />
@@ -108,24 +129,23 @@ export default function InviteDropdown({ boardId }: InviteDropdownProps) {
               </div>
             </div>
           )}
+
           {inviteLink && (
             <div className="mt-4">
               <label className="mb-1 block text-xs text-zinc-400">
-                Invite Code
+                Invite Link
               </label>
-
               <div className="flex gap-2">
                 <input
                   readOnly
                   value={inviteLink}
-                  className="flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white"
+                  className="w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white"
                 />
-
                 <Button
-                  onClick={copy}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-zinc-700 hover:bg-zinc-800"
+                  onClick={() => copyToClipboard(inviteLink, 'link')}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-700 hover:bg-zinc-800"
                 >
-                  {copied ? (
+                  {copiedField === 'link' ? (
                     <Check size={18} className="text-green-400" />
                   ) : (
                     <Copy size={18} />
@@ -135,7 +155,11 @@ export default function InviteDropdown({ boardId }: InviteDropdownProps) {
             </div>
           )}
 
-          {error && <p className="mt-3 text-sm text-red-400">{error.data.error}</p>}
+          {error && (
+            <p className="mt-3 text-sm text-red-400">
+              {(error as any)?.userMessage ?? 'Something went wrong.'}
+            </p>
+          )}
         </div>
       )}
     </div>

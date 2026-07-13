@@ -14,9 +14,10 @@ export default function Home() {
     canJoin,
     handleCreate,
     handleJoin,
-    memberError,
+    loading,
+    joining
   } = useCollabBoardForm();
-  // console.log(memberError);
+  console.log(joining);
   return (
     <div className="board-card">
       <div className="board-content">
@@ -40,9 +41,9 @@ export default function Home() {
           <Button
             className="board-btn"
             onClick={handleCreate}
-            disabled={!canCreate}
+            disabled={!canCreate || loading}
           >
-            Create board
+            {loading ? 'Creating...' : 'Create board'}
           </Button>
         </div>
 
@@ -60,9 +61,9 @@ export default function Home() {
           <Button
             className="board-btn "
             onClick={handleJoin}
-            disabled={!canJoin}
+            disabled={!canJoin || joining}
           >
-            Join
+            {joining ? 'Joining...' : 'Join'}
           </Button>
         </div>
       </div>

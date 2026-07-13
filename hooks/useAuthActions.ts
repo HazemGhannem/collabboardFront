@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import type { ApiResponseError, LoginData, SignupData } from '@/types/type';
+import type { LoginData, SignupData } from '@/types/type';
 import { api } from '@/utils/api';
 import { useAppDispatch } from '@/store/hooks';
 import {
@@ -11,59 +11,52 @@ import {
 } from '@/store/slices/authSlice';
 import { useBoardSocketActions } from './useBoardSocketActions';
 
+async function signupRequest(data: SignupData) {
+  const { data: response } = await api.post('/auth/signup', data);
+  return response;
+}
+async function loginRequest(data: LoginData) {
+  const { data: response } = await api.post('/auth/login', data);
+  return response;
+}
+
 export function useAuthActions() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { emitDisconnectSocket } = useBoardSocketActions();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ApiResponseError | null>(null);
 
-  const signup = async (data: SignupData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: response } = await api.post('/auth/signup', data);
+  const signupMutation = useMutation({
+    mutationFn: signupRequest,
+    onSuccess: (response) => {
       dispatch(setCredentials({ user: response.user }));
       router.push('/');
-    } catch (err: any) {
-      setError(err.response ?? 'Something went wrong. Try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  const login = async (data: LoginData) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data: response } = await api.post('/auth/login', data);
+  const loginMutation = useMutation({
+    mutationFn: loginRequest,
+    onSuccess: (response) => {
       dispatch(setCredentials({ user: response.user }));
       router.push('/');
-    } catch (err: any) {
-      setError(err.response ?? 'Invalid email or password.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
   const logout = async () => {
     try {
-      await api.post('/auth/logout'); // clears the httpOnly cookie server-side
+      await api.post('/auth/logout');
     } catch {
       // best-effort — proceed with client-side cleanup regardless
     }
-    emitDisconnectSocket(); // kill the live socket, was authenticated as this user
+    emitDisconnectSocket();
     dispatch(logoutAction());
     router.push('/login');
   };
-  const getMe = async () => {
-    try {
-      const { data } = await api.get('/auth/me');
-      dispatch(setCredentials({ user: data.user }));
-    } catch {
-      dispatch(logoutAction()); // cookie invalid/expired
-    }
-  };
 
-  return { login, signup, loading, error, setError, logout, getMe };
+  return {
+    signup: signupMutation.mutate,
+    login: loginMutation.mutate,
+    loading: signupMutation.isPending || loginMutation.isPending,
+    error: (signupMutation.error ?? loginMutation.error) as any,
+    logout,
+  };
 }

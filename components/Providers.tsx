@@ -25,6 +25,7 @@ const queryClient = new QueryClient({
       retry: (count, error: any) => {
         // never retry on 401/403/404 — retrying won't change the outcome
         const status = error?.response?.status;
+        if (!error?.response) return false;
         if ([401, 403, 404].includes(status)) return false;
         return count < 2;
       },
@@ -44,8 +45,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
 
     api
-      .get('/auth/me')
-      .then(({ data }) => store.dispatch(setCredentials({ user: data.data.user })))
+      .get('/auth/me', { meta: { silent: true } })
+      .then(({ data }) =>
+        store.dispatch(setCredentials({ user: data.data.user })),
+      )
       .catch(() => store.dispatch(logout())); // cookie invalid/expired
   }, []);
 

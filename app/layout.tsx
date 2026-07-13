@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google';
 import './globals.css';
 import NavBar from '@/components/nav/NavBar';
 import { Providers } from '@/components/Providers'; // ← new
+import { Toaster } from 'sonner';
 
 const geist = Geist({ subsets: ['latin'] });
 
@@ -24,6 +25,7 @@ export default function RootLayout({
         <Providers>
           <NavBar />
           {children}
+          <Toaster position="top-right" richColors />
         </Providers>
       </body>
     </html>

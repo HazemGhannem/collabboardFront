@@ -8,38 +8,38 @@ import { LayoutDashboard, Plus, Users } from 'lucide-react';
 import { useAppSelector } from '@/store/hooks';
 import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
-import HorizontalScroller from '@/components/home/HorizontalScroller';
+import { useBoardActions } from '@/hooks/useBoardActions';
 
 export default function Home() {
   const user = useAppSelector((s) => s.auth.user);
   const router = useRouter();
+  const { handleDelete } = useBoardActions();
 
-  const handleNavigation = () => {
-    router.push(`/board/`);
-  };
   const {
-    goToMemberPage,
-    goToOwnerPage,
     memberBoards,
-    memberError,
     loading,
     memberPagination,
     nextMemberPage,
     nextOwnerPage,
     ownerBoards,
-    ownerError,
     ownerFetching,
     memberFetching,
     ownerPagination,
     prevMemberPage,
     prevOwnerPage,
     isFetching,
+    ownerError, 
+    memberError, 
+    ownerRefetch, 
+    memberRefetch, 
   } = useUserBoards(4);
-  const total = memberPagination.total + ownerPagination?.total;
-  console.log(ownerPagination);
+
+  const total = (memberPagination?.total ?? 0) + (ownerPagination?.total ?? 0);
+
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-10 w-full">
-      <div className="flex items-center justify-between">
+    <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 py-10">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-medium text-white">
             Good to see you, {user?.firstName ?? 'there'} 👋
@@ -52,70 +52,64 @@ export default function Home() {
         </div>
 
         <Button
-          onClick={handleNavigation}
+          onClick={() => router.push('/board/')}
           className="flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-          icon={<Plus />}
+          icon={<Plus size={15} />}
         >
           New board
         </Button>
       </div>
 
+      {/* ── Content ────────────────────────────────────────────────────── */}
       {loading ? (
         <BoardsSkeleton />
       ) : (
-        <div className="w-full">
+        <div className="flex w-full flex-col gap-10">
+          {/* My Boards */}
           <Section
             title="My Boards"
             icon={<LayoutDashboard size={15} />}
-            count={ownerPagination.total}
+            count={ownerPagination?.total ?? 0}
             empty="You haven't created any boards yet."
+            isFetching={ownerFetching}
+            showPrev={ownerPagination?.page > 1}
+            showNext={ownerPagination?.page < ownerPagination?.totalPages}
+            onPrev={prevOwnerPage}
+            onNext={nextOwnerPage}
+            error={ownerError}
+            onRetry={ownerRefetch}
           >
-            <HorizontalScroller
-              onNext={nextOwnerPage}
-              onPrev={prevOwnerPage}
-              isFetching={ownerFetching}
-              showArrowsRight={
-                ownerPagination.page < ownerPagination.totalPages
-              }
-              showArrowsLeft={ownerPagination.page > 1}
-            >
-              {ownerBoards.map((owner) => (
-                <div
-                  key={owner._id}
-                  className="shrink-0 snap-start"
-                  style={{ flexBasis: 'calc((100% - 3 * 1rem) / 4)' }}
-                >
-                  <BoardsCard board={owner.board} role={owner.role} />
-                </div>
-              ))}
-            </HorizontalScroller>
+            {ownerBoards.map((owner) => (
+              <BoardsCard
+                key={owner._id}
+                board={owner.board}
+                role={owner.role}
+                onDelete={() => handleDelete(owner.board._id)}
+              />
+            ))}
           </Section>
 
+          {/* Member Of */}
           <Section
             title="Member Of"
             icon={<Users size={15} />}
-            count={memberPagination.total}
+            count={memberPagination?.total ?? 0}
             empty="You haven't joined any boards yet."
+            isFetching={memberFetching}
+            showPrev={memberPagination?.page > 1}
+            showNext={memberPagination?.page < memberPagination?.totalPages}
+            onPrev={prevMemberPage}
+            onNext={nextMemberPage}
+            error={memberError}
+            onRetry={memberRefetch}
           >
-            <HorizontalScroller
-              onNext={nextMemberPage}
-              onPrev={prevMemberPage}
-              isFetching={memberFetching}
-              showArrowsRight={
-                memberPagination.page < memberPagination.totalPages
-              }
-              showArrowsLeft={memberPagination.page > 1}
-            >
-              {memberBoards.map((member) => (
-                <div
-                  key={member._id}
-                  className="shrink-0 snap-start"
-                  style={{ flexBasis: 'calc((100% - 3 * 1rem) / 4)' }}
-                >
-                  <BoardsCard board={member.board} role={member.role} />
-                </div>
-              ))}
-            </HorizontalScroller>
+            {memberBoards.map((member) => (
+              <BoardsCard
+                key={member._id}
+                board={member.board}
+                role={member.role}
+              />
+            ))}
           </Section>
         </div>
       )}

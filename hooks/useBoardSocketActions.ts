@@ -62,9 +62,6 @@ export function useBoardSocketActions(boardId?: string) {
 
     socket.emit('cursor:move', {
       boardId,
-      userId: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
       x,
       y,
     });

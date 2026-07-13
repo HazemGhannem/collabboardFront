@@ -4,6 +4,7 @@ declare module 'axios' {
   export interface AxiosRequestConfig {
     meta?: {
       pageLoad?: boolean;
+      silent?: boolean;
     };
   }
 }
